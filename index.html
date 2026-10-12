@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#07080d">
+    <meta name="description" content="ANRU AI - Futuristic Phone Controller & Voice Assistant PWA">
+    <title>ANRU AI - Voice Assistant</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <!-- Free Puter.js Zero-API-Key AI Library -->
+    <script src="https://js.puter.com/v2/"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="bg-radial"></div>
+
+    <div class="app-container">
+        <!-- Top HUD Header -->
+        <header class="top-hud">
+            <div class="brand-section">
+                <img src="icon-192.png" alt="ANRU AI Core" class="hud-logo">
+                <div>
+                    <div class="brand-title">ANRU AI</div>
+                    <div class="brand-subtitle">Quantum Neural v3.0</div>
+                </div>
+            </div>
+            <div class="hud-actions">
+                <button id="sfxToggleBtn" class="icon-btn" title="Sound Effects">🔊</button>
+                <button id="settingsBtn" class="icon-btn" title="Settings">⚙️</button>
+            </div>
+        </header>
+
+        <!-- Telemetry Status Bar -->
+        <div class="telemetry-bar">
+            <span><span class="status-dot"></span><span id="connStatus">SYSTEM READY</span></span>
+            <span id="bossDisplay">BOSS: BOSS</span>
+            <span id="voiceLangDisplay">HI-IN</span>
+        </div>
+
+        <!-- Center Visualizer Reactor Orb -->
+        <main class="visualizer-section">
+            <div class="canvas-wrapper">
+                <canvas id="orbCanvas"></canvas>
+            </div>
+            <div class="status-label" id="orbStatusLabel">STANDBY // READY</div>
+        </main>
+
+        <!-- Dialogue & Response Box -->
+        <section class="dialogue-card">
+            <div class="user-transcript" id="userTranscript">
+                <span class="prefix">Aap:</span> <span id="userSpeechText">Mic dabakar command boliye...</span>
+            </div>
+            <div class="jarvis-response" id="jarvisResponseText">
+                "Namaste Boss! Main ANRU AI hoon. Boliye kisko Call milana hai, WhatsApp bhejna hai, ya koi sawal poochhna hai?"
+            </div>
+        </section>
+
+        <!-- Quick Action Chips (Swipeable on Mobile) -->
+        <nav class="chips-container" aria-label="Quick Commands">
+            <button class="action-chip" data-cmd="papa ko call lagao">📞 Call Papa</button>
+            <button class="action-chip" data-cmd="whatsapp par message bhejo Main 10 minute me aa raha hoon">💬 WhatsApp Msg</button>
+            <button class="action-chip" data-cmd="floating widget on karo">⚛️ Floating Arc</button>
+            <button class="action-chip" data-cmd="alarm lagao 6 baje">⏰ Alarm 6 AM</button>
+            <button class="action-chip" data-cmd="volume 80 percent">🔊 Volume 80%</button>
+            <button class="action-chip" data-cmd="camera on karo">📸 Camera</button>
+            <button class="action-chip" data-cmd="calculator kholo">🧮 Calculator</button>
+            <button class="action-chip" data-cmd="youtube par gaana chalao">▶️ YouTube</button>
+            <button class="action-chip" data-cmd="torch on karo">🔦 Torch On</button>
+            <button class="action-chip" data-cmd="torch off karo">🌑 Torch Off</button>
+            <button class="action-chip" data-cmd="fake call lagao">🚨 Fake Call</button>
+            <button class="action-chip" data-cmd="lie detector mode">🕵️ Lie Detector</button>
+            <button class="action-chip" data-cmd="dost ko roast karo">🔥 Dost Roast</button>
+            <button class="action-chip" data-cmd="bharat ke pradhanmantri kaun hai">🇮🇳 PM Kaun Hai?</button>
+            <button class="action-chip" data-cmd="generative ai kya hai">🤖 AI Kya Hai?</button>
+            <button class="action-chip" data-cmd="5000 ka 18 percent">🎯 Math Hisab</button>
+            <button class="action-chip" data-cmd="kya time hua hai">🕒 Time & Date</button>
+            <button class="action-chip" data-cmd="battery kitni hai">🔋 Battery Status</button>
+        </nav>
+
+        <!-- Bottom Controls -->
+        <footer class="bottom-controls">
+            <!-- Text Input Fallback Drawer -->
+            <div class="text-input-drawer" id="textInputDrawer">
+                <input type="text" id="manualInput" class="hud-input" placeholder="Type command here..." enterkeyhint="send">
+                <button id="manualSendBtn" class="send-btn">SEND</button>
+            </div>
+
+            <!-- Mic Trigger Orb -->
+            <div class="mic-wrapper">
+                <button id="micBtn" class="mic-btn" aria-label="Toggle Microphone">
+                    🎤
+                </button>
+                <div class="mic-ripple"></div>
+            </div>
+
+            <button id="keyboardToggleBtn" class="keyboard-toggle-btn">⌨️ Type Instead</button>
+        </footer>
+    </div>
+
+    <!-- Full-Screen Realistic Fake Incoming Call Screen -->
+    <div class="fake-call-overlay" id="fakeCallOverlay">
+        <div class="fake-call-card">
+            <div class="caller-avatar-wrapper">
+                <div class="caller-avatar">👤</div>
+                <div class="caller-avatar-pulse"></div>
+            </div>
+            <h2 class="caller-name" id="fakeCallerName">Papa (Urgent)</h2>
+            <p class="caller-status" id="fakeCallerStatus">Incoming Call...</p>
+            <p class="call-duration" id="fakeCallDuration" style="display: none;">00:00</p>
+
+            <div class="call-action-buttons">
+                <button class="call-decline-btn" id="fakeCallDeclineBtn" title="Decline Call">
+                    ❌
+                </button>
+                <button class="call-accept-btn" id="fakeCallAcceptBtn" title="Accept Call">
+                    📞
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="settings-card">
+            <div class="modal-header">
+                <h3>System Settings</h3>
+                <button id="closeSettingsBtn" class="close-btn">&times;</button>
+            </div>
+
+            <div class="setting-group">
+                <label for="inputBossName">Boss Name (Aapka Naam):</label>
+                <input type="text" id="inputBossName" placeholder="Jaise: Ankesh Kushwaha, Rahul, Aman">
+            </div>
+
+            <div class="setting-group">
+                <label for="selectPersonality">ANRU AI Personality:</label>
+                <select id="selectPersonality">
+                    <option value="savage">🔥 Savage / Desi Roast Swag</option>
+                    <option value="formal">👔 Formal Sci-Fi ANRU AI</option>
+                    <option value="desi">🤝 Desi Yaar / Friendly</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <label for="selectLanguage">Voice Engine Language:</label>
+                <select id="selectLanguage">
+                    <option value="hi-IN">हिन्दी (India - hi-IN)</option>
+                    <option value="en-IN">English (India - en-IN)</option>
+                    <option value="en-US">English (US - en-US)</option>
+                </select>
+            </div>
+
+            <!-- VIP Contacts Section -->
+            <div class="setting-group">
+                <label>VIP Contacts (Voice Call ke liye):</label>
+                <div class="contact-inputs">
+                    <input type="text" id="contactNameInput" placeholder="Name (e.g. Papa, Rohit)" style="flex: 1;">
+                    <input type="tel" id="contactPhoneInput" placeholder="Phone Number" style="flex: 1;">
+                    <button id="addContactBtn" class="small-btn">+ Save</button>
+                </div>
+                <div id="contactsListDisplay" class="contacts-pill-list"></div>
+            </div>
+
+            <!-- Native Android Features -->
+            <div class="setting-group" id="nativeSettingsGroup">
+                <label>🤖 Android APK Native Features:</label>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;">
+                    <button type="button" id="toggleArcBubbleBtn" class="small-btn" style="flex: 1; padding: 10px; background: rgba(0, 242, 254, 0.15); border: 1px solid var(--cyan); color: var(--cyan); border-radius: 6px; cursor: pointer;">⚛️ Toggle Floating Arc</button>
+                    <button type="button" id="openAccessBtn" class="small-btn" style="flex: 1; padding: 10px; background: rgba(168, 85, 247, 0.15); border: 1px solid var(--purple); color: var(--purple); border-radius: 6px; cursor: pointer;">⚡ WhatsApp Auto-Send Setup</button>
+                </div>
+            </div>
+
+            <button id="saveSettingsBtn" class="save-btn">Save Configuration</button>
+        </div>
+    </div>
+
+    <script src="audio_sfx.js"></script>
+    <script src="visualizer.js"></script>
+    <script src="brain.js"></script>
+    <script src="speech.js"></script>
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('ANRU AI PWA Service Worker Registered', reg))
+                    .catch(err => console.warn('Service Worker registration failed', err));
+            });
+        }
+    </script>
+</body>
+</html>
