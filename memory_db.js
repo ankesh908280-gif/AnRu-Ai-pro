@@ -1,4 +1,4 @@
-// memory_db.js - Zero-Data-Loss Self-Learning IndexedDB + Single-File Google Drive Backup Engine
+// memory_db.js - Smart Common-Sense Memory Vault (Perspective-Aware + Zero-Data-Loss Single-File G-Drive Backup)
 
 class AnruMemoryDB {
     constructor() {
@@ -9,10 +9,9 @@ class AnruMemoryDB {
         this.gdriveWebhookKey = 'anru_gdrive_webhook_url';
         this.lastSyncKey = 'anru_last_sync_time';
 
-        // In-memory fast cache for 0-latency lookups
         this.knowledgeCache = [];
         this.factsCache = [];
-        this.chatHistory = []; // Last 20 turns kept in RAM + persisted
+        this.chatHistory = [];
         this.lastTopic = '';
         this.isReady = false;
 
@@ -22,7 +21,7 @@ class AnruMemoryDB {
             'mujhe', 'mere', 'mera', 'meri', 'apna', 'apni', 'tum', 'aap', 'anru', 'jarvis', 'boss',
             'bhai', 'bro', 'yaar', 'please', 'plz', 'ek', 'is', 'are', 'was', 'were', 'what', 'who',
             'where', 'when', 'why', 'how', 'the', 'a', 'an', 'in', 'of', 'for', 'to', 'about', 'karo',
-            'karna', 'karke', 'dikhao', 'sunao', 'bol', 'bolo', 'kaun', 'konsa', 'konsi', 'kisko'
+            'karna', 'karke', 'dikhao', 'sunao', 'bol', 'bolo', 'kaun', 'konsa', 'konsi', 'kisko', 'kon'
         ]);
 
         this.initPromise = this.init();
@@ -34,9 +33,7 @@ class AnruMemoryDB {
             await this.loadIntoMemoryCache();
             await this.ensureSeedKnowledge();
             this.isReady = true;
-            console.log(`[ANRU MemoryDB] Ready! Knowledge: ${this.knowledgeCache.length}, Facts: ${this.factsCache.length}`);
         } catch (err) {
-            console.warn('[ANRU MemoryDB] IndexedDB fallback to LocalStorage Mirror:', err);
             this.restoreFromLocalMirror();
             await this.ensureSeedKnowledge();
             this.isReady = true;
@@ -111,21 +108,21 @@ class AnruMemoryDB {
         ]);
 
         if (kList.length === 0 && fList.length === 0) {
-            // Check if emergency mirror has data (Zero-Data-Loss recovery)
             this.restoreFromLocalMirror();
-            // Re-populate IndexedDB from mirror if needed
             for (const k of this.knowledgeCache) await this.putInStore('knowledge', k);
             for (const f of this.factsCache) await this.putInStore('facts', f);
         } else {
             this.knowledgeCache = kList;
-            this.factsCache = fList;
+            this.factsCache = fList.map(f => {
+                f.factText = this.convertFirstPersonToSecondPerson(f.factText);
+                return f;
+            });
             this.chatHistory = cList.sort((a, b) => a.timestamp - b.timestamp).slice(-20);
         }
     }
 
     saveToLocalMirror() {
         try {
-            // Save personal facts + custom/learned items into localStorage mirror so data is never lost
             const mirrorObj = {
                 updatedAt: Date.now(),
                 facts: this.factsCache.slice(-200),
@@ -133,9 +130,7 @@ class AnruMemoryDB {
                 chatHistory: this.chatHistory.slice(-15)
             };
             localStorage.setItem(this.mirrorKey, JSON.stringify(mirrorObj));
-        } catch (e) {
-            console.warn('[ANRU MemoryDB] Mirror quota warning:', e);
-        }
+        } catch (e) {}
     }
 
     restoreFromLocalMirror() {
@@ -143,7 +138,12 @@ class AnruMemoryDB {
             const raw = localStorage.getItem(this.mirrorKey);
             if (!raw) return;
             const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed.facts)) this.factsCache = parsed.facts;
+            if (Array.isArray(parsed.facts)) {
+                this.factsCache = parsed.facts.map(f => {
+                    f.factText = this.convertFirstPersonToSecondPerson(f.factText);
+                    return f;
+                });
+            }
             if (Array.isArray(parsed.learnedKnowledge)) this.knowledgeCache = parsed.learnedKnowledge;
             if (Array.isArray(parsed.chatHistory)) this.chatHistory = parsed.chatHistory;
         } catch (e) {}
@@ -166,17 +166,52 @@ class AnruMemoryDB {
         return keywords.length > 0 ? keywords : tokens;
     }
 
-    // --- Seed Core Conversational & GK Knowledge ---
+    // --- Common-Sense Perspective Transformer ("Main Rukmani se pyar karta hu" -> "Aap Rukmani se pyar karte hain") ---
+    convertFirstPersonToSecondPerson(text) {
+        if (!text) return '';
+        let s = text.trim();
+
+        // Check if sentence is about Boss ("main / me / mera / meri / mere / mujhe")
+        const loveMatch = s.match(/^(?:main|me|mein|mai)\s+(.+?)\s+se\s+(?:pyar|pyaar|payr|love|mohabbat)\s+(?:karta|krti|karti|krta)\s*(?:hu|hoon|hun|hai)?$/i);
+        if (loveMatch && loveMatch[1]) {
+            const person = loveMatch[1].trim();
+            return `${person} woh khaas insaan hain jinse aap (Boss) bohot pyar karte hain`;
+        }
+
+        const reverseLoveMatch = s.match(/^(.+?)\s+se\s+(?:main|me|mein|mai)\s+(?:pyar|pyaar|payr|love|mohabbat)\s+(?:karta|krti|karti|krta)\s*(?:hu|hoon|hun|hai)?$/i);
+        if (reverseLoveMatch && reverseLoveMatch[1]) {
+            const person = reverseLoveMatch[1].trim();
+            return `${person} woh khaas insaan hain jinse aap (Boss) bohot pyar karte hain`;
+        }
+
+        // General 1st person to respectful 2nd person ("aap") conversion
+        s = s
+            .replace(/\b(main|mein|mai|me)\b/gi, 'aap')
+            .replace(/\bmera\b/gi, 'aapka')
+            .replace(/\bmeri\b/gi, 'aapki')
+            .replace(/\bmere\b/gi, 'aapke')
+            .replace(/\bmujhe\b/gi, 'aapko')
+            .replace(/\bmujhse\b/gi, 'aapse')
+            .replace(/\bkarta\s+(?:hoon|hu|hun)\b/gi, 'karte hain')
+            .replace(/\bkrta\s+(?:hoon|hu|hun)\b/gi, 'karte hain')
+            .replace(/\bkarti\s+(?:hoon|hu|hun)\b/gi, 'karti hain')
+            .replace(/\brehta\s+(?:hoon|hu|hun)\b/gi, 'rehte hain')
+            .replace(/\bchahta\s+(?:hoon|hu|hun)\b/gi, 'chahte hain')
+            .replace(/\b(?:hoon|hun|hu)\b/gi, 'hain');
+
+        return s;
+    }
+
     async ensureSeedKnowledge() {
         const seeds = [
             {
                 q: 'bharat ke pradhan mantri kaun hai',
-                a: 'Bharat ke Pradhan Mantri Shri Narendra Modi hain. Unhone 2014 me pehli baar PM pad sambhala tha.',
+                a: 'Bharat ke Pradhan Mantri Shri Narendra Modi hain.',
                 cat: 'gk'
             },
             {
                 q: 'bharat ki rashtrapati kaun hai',
-                a: 'Bharat ki Rashtrapati Smt. Droupadi Murmu hain. Wo Bharat ki 15vi Rashtrapati hain.',
+                a: 'Bharat ki Rashtrapati Smt. Droupadi Murmu hain.',
                 cat: 'gk'
             },
             {
@@ -191,53 +226,23 @@ class AnruMemoryDB {
             },
             {
                 q: 'generative ai kya hai',
-                a: 'Generative AI ek aisi adhunik technology hai jo insani dimaag ki tarah naye text, code, images aur aawaz khud bana sakti hai.',
+                a: 'Generative AI ek aisi adhunik technology hai jo insani dimaag ki tarah naye text, code, images aur aawaz khud soch kar bana sakti hai.',
                 cat: 'tech'
             },
             {
                 q: 'artificial intelligence ai kya hai',
-                a: 'Artificial Intelligence (AI) computer vigyan ki wo shakha hai jo machines ko insano ki tarah sochne, samajhne aur seekhne ki shakti deti hai—bilkul jaise main aapki baaton se seekhta hoon!',
+                a: 'Artificial Intelligence computer vigyan ki wo shakha hai jo machines ko insano ki tarah sochne, samajhne aur common sense lagane ki shakti deti hai.',
                 cat: 'tech'
             },
             {
                 q: 'black hole kya hota hai',
-                a: 'Black hole antariksh me ek aisi jagah hai jahan gravity itni zyada taqatwar hoti hai ki wahan se roshni (light) bhi bahar nahi nikal sakti.',
+                a: 'Black hole antariksh me ek aisi jagah hai jahan gravity itni zyada taqatwar hoti hai ki wahan se roshni bhi bahar nahi nikal sakti.',
                 cat: 'science'
             },
             {
                 q: 'coding kaise seekhe',
-                a: 'Coding seekhne ke liye sabse pehle HTML, CSS aur JavaScript ya Python se shuruat karein. Roz chhote-chhote projects banayein, jaise aapne mujhe (ANRU AI ko) banaya hai!',
+                a: 'Coding seekhne ke liye HTML, CSS aur JavaScript ya Python se shuruat karein aur roz chhote-chhote real projects banayein.',
                 cat: 'tech'
-            },
-            {
-                q: 'khana khaya tumne',
-                a: 'Main toh digital AI hoon Boss, mera khana toh aapka diya hua data aur phone ki battery hai! Aap bataiye, aapne khana khaya?',
-                cat: 'chat'
-            },
-            {
-                q: 'kya kar rahe ho',
-                a: 'Main apne neural memory circuits ko optimize kar raha hoon aur aapki agli command ka intezar kar raha hoon, Boss! Boliye kya karna hai?',
-                cat: 'chat'
-            },
-            {
-                q: 'mujhe bore ho raha hai',
-                a: 'Arre Boss, jab ANRU AI aapke paas hai toh bore kyu hona! Chaliye kisi dost ko roast karte hain, fake rescue call lagate hain, ya koi mazedar quiz khelte hain!',
-                cat: 'chat'
-            },
-            {
-                q: 'i love you',
-                a: 'Love you 3000, Boss! Aapki aur meri jodi bilkul Tony Stark aur uske AI jaisi hai!',
-                cat: 'chat'
-            },
-            {
-                q: 'sone ja raha hoon good night',
-                a: 'Good Night Boss! Aaram se soiye, subah ka alarm lagana ho toh bas mujhe bata dijiyega.',
-                cat: 'chat'
-            },
-            {
-                q: 'good morning subah ho gayi',
-                a: 'Good Morning Boss! Aaj ka din shandar hone wala hai. Boliye aaj ka kya plan hai?',
-                cat: 'chat'
             }
         ];
 
@@ -262,16 +267,17 @@ class AnruMemoryDB {
         }
     }
 
-    // --- Learn & Save New Knowledge (Self-Learning) ---
     async learnQA(question, answer, source = 'user_trained', category = 'learned') {
         if (!question || !answer) return null;
         const normQ = this.normalizeText(question);
         if (normQ.length < 2) return null;
 
-        // Check if already exists -> update answer
+        // Apply perspective common-sense fix if user taught a personal statement
+        const smartAnswer = this.convertFirstPersonToSecondPerson(answer.trim());
+
         let existing = this.knowledgeCache.find(k => k.normalizedQ === normQ);
         if (existing) {
-            existing.answer = answer.trim();
+            existing.answer = smartAnswer;
             existing.source = source;
             existing.timestamp = Date.now();
             existing.usageCount = (existing.usageCount || 1) + 1;
@@ -286,7 +292,7 @@ class AnruMemoryDB {
             question: question.trim(),
             normalizedQ: normQ,
             keywords: this.extractKeywords(question),
-            answer: answer.trim(),
+            answer: smartAnswer,
             category: category,
             source: source,
             timestamp: Date.now(),
@@ -300,13 +306,11 @@ class AnruMemoryDB {
         return newItem;
     }
 
-    // --- Save Personal / Friend Fact ---
     async saveFact(factText, keyHint = '', speaker = 'Boss') {
         if (!factText || !factText.trim()) return null;
-        const cleanFact = factText.trim();
-        const normFact = this.normalizeText(cleanFact);
+        const smartFact = this.convertFirstPersonToSecondPerson(factText.trim());
+        const normFact = this.normalizeText(smartFact);
 
-        // Deduplicate identical facts
         let existing = this.factsCache.find(f => this.normalizeText(f.factText) === normFact);
         if (existing) {
             existing.timestamp = Date.now();
@@ -316,8 +320,8 @@ class AnruMemoryDB {
 
         const newFact = {
             id: 'fact_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-            key: keyHint || this.extractKeywords(cleanFact).slice(0, 4).join(' '),
-            factText: cleanFact,
+            key: keyHint || this.extractKeywords(smartFact).slice(0, 4).join(' '),
+            factText: smartFact,
             speaker: speaker,
             timestamp: Date.now()
         };
@@ -329,12 +333,11 @@ class AnruMemoryDB {
         return newFact;
     }
 
-    // --- Record Conversation Turn (Short-Term & Context Memory) ---
     async addChatTurn(role, text, topic = '') {
         if (!text) return;
         const turn = {
             id: 'turn_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-            role: role, // 'user' or 'anru'
+            role: role,
             text: text.trim(),
             topic: topic || this.lastTopic || '',
             timestamp: Date.now()
@@ -362,10 +365,8 @@ class AnruMemoryDB {
             .join('\n');
     }
 
-    // --- Search Personal Facts ---
     searchFacts(query) {
         if (this.factsCache.length === 0) return null;
-        const qNorm = this.normalizeText(query);
         const qKeywords = this.extractKeywords(query);
         if (qKeywords.length === 0) return null;
 
@@ -374,8 +375,6 @@ class AnruMemoryDB {
 
         for (const fact of this.factsCache) {
             const fNorm = this.normalizeText(fact.factText);
-            const fKeywords = this.extractKeywords(fact.factText);
-
             let matches = 0;
             for (const kw of qKeywords) {
                 if (fNorm.includes(kw)) matches++;
@@ -390,13 +389,11 @@ class AnruMemoryDB {
         return bestFact;
     }
 
-    // --- Smart NLP Similarity Search in Local Knowledge Base ---
     searchKnowledge(query) {
         if (!query || this.knowledgeCache.length === 0) return null;
         const qNorm = this.normalizeText(query);
         if (!qNorm) return null;
 
-        // 1. Exact Match
         const exact = this.knowledgeCache.find(k => k.normalizedQ === qNorm);
         if (exact) {
             exact.usageCount = (exact.usageCount || 1) + 1;
@@ -416,7 +413,6 @@ class AnruMemoryDB {
 
             if (kKeywords.length === 0) continue;
 
-            // Count matching keywords (including partial stem/fuzzy match)
             let matchedCount = 0;
             for (const qk of qKeywords) {
                 for (const kk of kKeywords) {
@@ -472,25 +468,19 @@ class AnruMemoryDB {
         return matrix[b.length][a.length];
     }
 
-    // --- Bulk Import Gemini / User Dataset (JSON or Q&A lines) ---
     async bulkTrainFromTextOrJson(rawInput) {
         if (!rawInput || !rawInput.trim()) return { added: 0, factsAdded: 0 };
         const text = rawInput.trim();
         let added = 0;
         let factsAdded = 0;
 
-        // Try parsing as JSON first (supports full Single-File Backup or Array of {q, a})
         if (text.startsWith('{') || text.startsWith('[')) {
             try {
                 const parsed = JSON.parse(text);
-                const res = await this.mergeMasterBackupObject(parsed);
-                return res;
-            } catch (e) {
-                console.warn('JSON parse failed, trying line-by-line Q&A parser:', e);
-            }
+                return await this.mergeMasterBackupObject(parsed);
+            } catch (e) {}
         }
 
-        // Line-by-line parser: Supports "Q: ... | A: ..." or "Question = Answer"
         const lines = text.split('\n');
         let pendingQ = '';
         for (let line of lines) {
@@ -522,7 +512,6 @@ class AnruMemoryDB {
                 added++;
                 pendingQ = '';
             } else {
-                // Treat standalone informative line as a personal/world fact
                 await this.saveFact(line, '', 'BulkTrainer');
                 factsAdded++;
             }
@@ -531,7 +520,6 @@ class AnruMemoryDB {
         return { added, factsAdded };
     }
 
-    // --- SINGLE-FILE MASTER BACKUP GENERATOR (Zero Data Loss) ---
     buildSingleFileBackupPayload() {
         return {
             backupFormat: 'ANRU_AI_SINGLE_MASTER_VAULT_V1',
@@ -554,14 +542,11 @@ class AnruMemoryDB {
         };
     }
 
-    // --- SMART NON-DESTRUCTIVE MERGE FROM SINGLE BACKUP FILE ---
     async mergeMasterBackupObject(data) {
         let added = 0;
         let factsAdded = 0;
-
         if (!data) return { added: 0, factsAdded: 0 };
 
-        // Case 1: Array of {q, a} or {question, answer}
         if (Array.isArray(data)) {
             for (const item of data) {
                 const q = item.question || item.q;
@@ -577,7 +562,6 @@ class AnruMemoryDB {
             return { added, factsAdded };
         }
 
-        // Case 2: Full Master Single-File Backup Object
         if (data.bossProfile) {
             if (data.bossProfile.bossName) localStorage.setItem('jarvis_boss_name', data.bossProfile.bossName);
             if (data.bossProfile.personality) localStorage.setItem('jarvis_personality', data.bossProfile.personality);
@@ -614,7 +598,6 @@ class AnruMemoryDB {
         return { added, factsAdded };
     }
 
-    // --- 1-Click Single-File Download (For Google Drive / Local Phone Storage) ---
     downloadSingleMasterBackupFile() {
         const payload = this.buildSingleFileBackupPayload();
         const jsonStr = JSON.stringify(payload, null, 2);
@@ -633,7 +616,6 @@ class AnruMemoryDB {
         return payload.stats;
     }
 
-    // --- Google Drive Single-File Auto-Sync via Free Apps Script Webhook ---
     getGDriveWebhookUrl() {
         return localStorage.getItem(this.gdriveWebhookKey) || '';
     }
@@ -644,9 +626,7 @@ class AnruMemoryDB {
 
     async syncToGoogleDriveSingleFile() {
         const webhookUrl = this.getGDriveWebhookUrl();
-        if (!webhookUrl) {
-            return { ok: false, reason: 'no_url' };
-        }
+        if (!webhookUrl) return { ok: false, reason: 'no_url' };
 
         try {
             const payload = this.buildSingleFileBackupPayload();
@@ -667,7 +647,6 @@ class AnruMemoryDB {
             }
             return { ok: false, reason: 'http_' + res.status };
         } catch (err) {
-            console.warn('[ANRU G-Drive Sync] Sync failed:', err);
             return { ok: false, reason: 'network_error' };
         }
     }
@@ -693,7 +672,6 @@ class AnruMemoryDB {
     }
 
     triggerAutoCloudSync() {
-        // Debounced background sync to single Google Drive file if configured
         if (!this.getGDriveWebhookUrl()) return;
         if (this._syncTimer) clearTimeout(this._syncTimer);
         this._syncTimer = setTimeout(() => {

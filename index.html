@@ -4,15 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#07080d">
-    <meta name="description" content="ANRU AI - Self-Learning Human-Like Voice Assistant & Phone Controller">
-    <title>ANRU AI - Self-Learning Voice Assistant</title>
+    <meta name="description" content="ANRU AI - Smart Common-Sense Voice Assistant & Phone Controller">
+    <title>ANRU AI - Smart Voice Assistant</title>
     
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    
-    <!-- Free Puter.js Zero-API-Key AI Library -->
-    <script src="https://js.puter.com/v2/"></script>
     
     <link rel="stylesheet" href="style.css">
 </head>
@@ -27,7 +24,7 @@
                 <img src="icon-192.png" alt="ANRU AI Core" class="hud-logo">
                 <div>
                     <div class="brand-title">ANRU AI</div>
-                    <div class="brand-subtitle">Self-Learning Neural v4.0</div>
+                    <div class="brand-subtitle">Common-Sense Neural v5.0</div>
                 </div>
             </div>
             <div class="hud-actions">
@@ -40,7 +37,7 @@
         <!-- Telemetry Status Bar -->
         <div class="telemetry-bar">
             <span><span class="status-dot"></span><span id="connStatus">SYSTEM READY</span></span>
-            <span id="memoryCountDisplay">🧠 14 MEMORIES</span>
+            <span id="memoryCountDisplay">🧠 SMART BRAIN</span>
             <span id="bossDisplay">BOSS: BOSS</span>
             <span id="voiceLangDisplay">HI-IN</span>
         </div>
@@ -59,7 +56,7 @@
                 <span class="prefix">Aap:</span> <span id="userSpeechText">Mic dabakar command boliye...</span>
             </div>
             <div class="jarvis-response" id="jarvisResponseText">
-                "Namaste Boss! Main ANRU AI hoon. Main aapki purani baatein yaad rakhta hoon aur har roz naya seekhta hoon. Boliye aaj kya baat karein?"
+                "Namaste Boss! Main ANRU AI hoon. Ab mere andar bina kisi popup ke sochne aur samajhne wala Common-Sense Brain active hai. Boliye aaj kya baat karein?"
             </div>
         </section>
 
@@ -92,7 +89,7 @@
         <footer class="bottom-controls">
             <!-- Text Input Fallback Drawer -->
             <div class="text-input-drawer" id="textInputDrawer">
-                <input type="text" id="manualInput" class="hud-input" placeholder="Boliye ya type karein (e.g. Yaad rakho...)" enterkeyhint="send">
+                <input type="text" id="manualInput" class="hud-input" placeholder="Boliye ya type karein..." enterkeyhint="send">
                 <button id="manualSendBtn" class="send-btn">SEND</button>
             </div>
 
@@ -141,8 +138,8 @@
             <!-- Memory Stats Banner -->
             <div class="setting-group" style="background: rgba(0, 242, 254, 0.08); border: 1px solid rgba(0, 242, 254, 0.3); padding: 10px; border-radius: 10px;">
                 <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px;">
-                    <span>📚 Learned Q&A: <strong id="statKnowledgeCount" style="color: var(--cyan);">14</strong></span>
-                    <span>💡 Personal Facts: <strong id="statFactsCount" style="color: var(--purple);">0</strong></span>
+                    <span>📚 Learned Topics: <strong id="statKnowledgeCount" style="color: var(--cyan);">8</strong></span>
+                    <span>💡 Personal Notes: <strong id="statFactsCount" style="color: var(--purple);">0</strong></span>
                 </div>
                 <div style="font-size: 0.75rem; color: var(--text-dim);">
                     Last Backup: <span id="statLastSync">Abhi tak nahi hua</span>
@@ -161,27 +158,24 @@
                     </button>
                     <input type="file" id="importBrainFileInput" accept=".json,.txt" style="display: none;">
                 </div>
-                <p style="font-size: 0.72rem; color: var(--text-dim); margin-top: 5px;">
-                    Saara data (`ANRU_AI_Master_Brain_Backup.json`) ek hi single file me download hota hai. Ise apne 4TB Google Drive par rakhein!
-                </p>
             </div>
 
             <!-- 2. Teach Single Question / Personal Memory -->
             <div class="setting-group">
-                <label>🎓 ANRU AI Ko Naya Sawal-Jawab Sikhao:</label>
-                <input type="text" id="teachQuestionInput" placeholder="Sawal (e.g. Mere dost Rohit ka bday kab hai?)" style="margin-bottom: 6px;">
-                <input type="text" id="teachAnswerInput" placeholder="Jawab (e.g. Rohit ka birthday 10 August ko hai)">
+                <label>🎓 Personal Fact ya Note Add Karein:</label>
+                <input type="text" id="teachQuestionInput" placeholder="Topic / Sawal (e.g. Rukmani kaun hai)" style="margin-bottom: 6px;">
+                <input type="text" id="teachAnswerInput" placeholder="Baat (e.g. Main Rukmani se pyar karta hoon)">
                 <button type="button" id="teachSubmitBtn" class="small-btn" style="width: 100%; margin-top: 6px; padding: 9px; background: rgba(168, 85, 247, 0.2); border: 1px solid var(--purple); color: #fff; border-radius: 8px; cursor: pointer;">
-                    ➕ Lock in Permanent Brain
+                    ➕ Save with Common Sense
                 </button>
             </div>
 
-            <!-- 3. Bulk Gemini Data Booster -->
+            <!-- 3. Bulk Data Importer -->
             <div class="setting-group">
-                <label for="bulkTrainTextarea">🚀 Gemini Bulk Data Booster (Paste Q&A or JSON):</label>
-                <textarea id="bulkTrainTextarea" rows="3" placeholder="Format: Sawal | Jawab (Ek line me ek)&#10;Jaise: Taj Mahal kahan hai | Taj Mahal Agra me hai" style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid var(--card-border); color: #fff; padding: 8px; border-radius: 8px; font-size: 0.82rem;"></textarea>
+                <label for="bulkTrainTextarea">🚀 Bulk Notes / Q&A Importer:</label>
+                <textarea id="bulkTrainTextarea" rows="2" placeholder="Paste notes or Q&A (Sawal | Jawab)" style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid var(--card-border); color: #fff; padding: 8px; border-radius: 8px; font-size: 0.82rem;"></textarea>
                 <button type="button" id="bulkTrainBtn" class="small-btn" style="width: 100%; margin-top: 6px; padding: 9px; background: rgba(0, 242, 254, 0.2); border: 1px solid var(--cyan); color: var(--cyan); border-radius: 8px; cursor: pointer;">
-                    ⚡ Train Bulk Data into Brain
+                    ⚡ Add to Memory Vault
                 </button>
             </div>
 

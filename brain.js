@@ -1,4 +1,4 @@
-// brain.js - Self-Learning Human-Like Intelligence Engine with Context Memory & Auto-Harvester
+// brain.js - Common-Sense Thinking Brain (No Popups, No Rattu-Tota, RAG Memory + Silent AI)
 
 class AnruBrain {
     constructor() {
@@ -6,9 +6,9 @@ class AnruBrain {
         this.personality = localStorage.getItem('jarvis_personality') || 'savage';
         this.geminiApiKey = localStorage.getItem('jarvis_gemini_key') || '';
         this.lastUserQuestion = '';
+        this.awaitingTeachingForQuestion = '';
         this.currentTopic = '';
 
-        // VIP Contacts (Saved in localStorage)
         const savedContacts = localStorage.getItem('jarvis_contacts');
         this.contacts = savedContacts ? JSON.parse(savedContacts) : {
             'papa': '9876543210',
@@ -63,7 +63,6 @@ class AnruBrain {
             .trim();
     }
 
-    // --- Resolve Pronouns & Follow-Up Questions Using Conversation Context ---
     resolveContextualQuery(query, rawQuery) {
         const pronounPatterns = /\b(uska|uski|uske|unka|unki|unhone|wahan|iska|iski|iske|unme|isme|aur batao|detail me batao|umar kya hai|age kya hai)\b/i;
         if (this.currentTopic && pronounPatterns.test(query) && query.split(' ').length <= 7) {
@@ -76,7 +75,7 @@ class AnruBrain {
 
     extractTopicFromQuery(rawQuery) {
         const cleaned = rawQuery
-            .replace(/\b(kya hai|kya hota hai|kaun hai|kaun the|ke baare me batao|batao|explain karo|what is|who is|tell me about|kahan hai)\b/gi, '')
+            .replace(/\b(kya hai|kya hota hai|kaun hai|kon hai|kaun the|ke baare me batao|batao|explain karo|what is|who is|tell me about|kahan hai)\b/gi, '')
             .replace(/[?.,!]/g, '')
             .trim();
         if (cleaned.length >= 2 && cleaned.split(' ').length <= 5) {
@@ -92,7 +91,7 @@ class AnruBrain {
 
         const query = this.normalize(rawQuery);
 
-        // 0. Live Teaching, Fact Learning & Self-Correction Commands
+        // 0. Live Teaching, Implicit Personal Statements ("main rukmani se pyar karta hu") & Corrections
         const learningResult = await this.handleLiveLearningAndMemory(query, rawQuery);
         if (learningResult) {
             await this.recordTurn(rawQuery, learningResult.text);
@@ -117,7 +116,7 @@ class AnruBrain {
             };
         }
 
-        // 3. Core Assistant Commands (Intro, Roasts, Identity, Time, Date, Battery, Memory Stats)
+        // 3. Core Assistant Commands (Intro, Roasts, Identity, Time, Date, Battery)
         const offlineCoreResp = await this.matchCoreIntents(query, rawQuery);
         if (offlineCoreResp) {
             await this.recordTurn(rawQuery, offlineCoreResp);
@@ -127,90 +126,75 @@ class AnruBrain {
             };
         }
 
-        // Resolve contextual follow-up (e.g. "unki age kya hai" -> "<lastTopic> unki age kya hai")
         const contextualRawQuery = this.resolveContextualQuery(query, rawQuery);
         const contextualNormQuery = this.normalize(contextualRawQuery);
         const detectedTopic = this.extractTopicFromQuery(rawQuery);
         if (detectedTopic) this.currentTopic = detectedTopic;
 
-        // 4. Check Personal & Friends Facts Vault (Long-Term Personal Memory)
+        // 4. Gather Relevant Memory Hints (RAG - Memory acts as notes for Common-Sense Thinking!)
+        let memoryHint = '';
+        let matchedLocalAnswer = '';
+
         if (this.memory) {
             const factMatch = this.memory.searchFacts(contextualNormQuery);
             if (factMatch) {
-                const humanFactReply = `Boss, mujhe ache se yaad hai: ${factMatch.factText}.`;
-                await this.recordTurn(rawQuery, humanFactReply, this.currentTopic);
-                return {
-                    text: humanFactReply,
-                    source: 'personal_memory',
-                    learned: false
-                };
+                memoryHint = factMatch.factText;
+                matchedLocalAnswer = `Boss, ${factMatch.factText}!`;
             }
 
-            // 5. Check Self-Learning IndexedDB Knowledge Vault (Offline Learned + Seeded Q&A)
             const kMatch = this.memory.searchKnowledge(contextualNormQuery);
-            if (kMatch && kMatch.confidence >= 0.68) {
-                const reply = this.humanizeReply(kMatch.item.answer);
-                await this.recordTurn(rawQuery, reply, this.currentTopic);
-                this.lastUserQuestion = contextualRawQuery;
-                return {
-                    text: reply,
-                    source: 'local_brain_db',
-                    confidence: kMatch.confidence
-                };
+            if (kMatch && kMatch.confidence >= 0.65) {
+                memoryHint = memoryHint
+                    ? `${memoryHint}. Also: ${kMatch.item.answer}`
+                    : kMatch.item.answer;
+                matchedLocalAnswer = this.composeSmartOfflineReply(rawQuery, kMatch.item.answer);
             }
         }
 
-        // 6. Desi GK & Word Meaning Vault (Instant Built-in Vault)
+        // 5. Built-in Fast GK Vault check
         const desiGkResp = this.matchDesiGkVault(contextualNormQuery, contextualRawQuery);
         if (desiGkResp) {
-            await this.recordTurn(rawQuery, desiGkResp, this.currentTopic);
-            this.lastUserQuestion = contextualRawQuery;
-            return {
-                text: desiGkResp,
-                source: 'desi_gk_vault'
-            };
+            memoryHint = memoryHint ? `${memoryHint}. ${desiGkResp}` : desiGkResp;
+            if (!matchedLocalAnswer) matchedLocalAnswer = desiGkResp;
         }
 
-        // 7. Optional Gemini API (If configured by user) + Auto-Save to Brain
+        // 6. Optional Gemini API (If key configured)
         if (this.geminiApiKey) {
             try {
-                const geminiResp = await this.queryGemini(contextualRawQuery);
+                const geminiResp = await this.queryGemini(contextualRawQuery, memoryHint);
                 if (geminiResp) {
                     await this.autoHarvestToBrain(contextualRawQuery, geminiResp, 'gemini_learned');
                     await this.recordTurn(rawQuery, geminiResp, this.currentTopic);
                     this.lastUserQuestion = contextualRawQuery;
                     return { text: geminiResp, source: 'gemini', autoLearned: true };
                 }
-            } catch (err) {
-                console.warn('Gemini API call failed, using Puter AI:', err);
-            }
+            } catch (err) {}
         }
 
-        // 8. Free Puter.js AI with Full Conversation History & Personal Memory Context + Auto-Learn
+        // 7. Silent Smart Thinking AI (Pollinations OpenAI POST & GET - 0 Popups, 0 Sign-In, Full Common Sense!)
         try {
-            const puterResp = await this.queryPuterAI(contextualRawQuery);
-            if (puterResp) {
-                await this.autoHarvestToBrain(contextualRawQuery, puterResp, 'ai_harvested');
-                await this.recordTurn(rawQuery, puterResp, this.currentTopic);
+            const smartAiResp = await this.querySilentSmartAI(contextualRawQuery, memoryHint);
+            if (smartAiResp) {
+                if (!memoryHint) {
+                    await this.autoHarvestToBrain(contextualRawQuery, smartAiResp, 'ai_harvested');
+                }
+                await this.recordTurn(rawQuery, smartAiResp, this.currentTopic);
                 this.lastUserQuestion = contextualRawQuery;
-                return { text: puterResp, source: 'puter_ai', autoLearned: true };
-            }
-        } catch (err) {
-            console.warn('Puter.js AI unavailable, falling back to Pollinations/Wikipedia:', err);
-        }
-
-        // 9. Pollinations Context-Aware Human AI + Auto-Learn
-        try {
-            const freeAiResp = await this.queryPollinationsAI(contextualRawQuery);
-            if (freeAiResp) {
-                await this.autoHarvestToBrain(contextualRawQuery, freeAiResp, 'ai_harvested');
-                await this.recordTurn(rawQuery, freeAiResp, this.currentTopic);
-                this.lastUserQuestion = contextualRawQuery;
-                return { text: freeAiResp, source: 'pollinations_ai', autoLearned: true };
+                return { text: smartAiResp, source: 'silent_smart_ai', autoLearned: true };
             }
         } catch (err) {}
 
-        // 10. Dual Hindi & English Wikipedia Auto-Harvester
+        // 8. If Offline or Silent AI unreachable -> Use Smart Perspective-Aware Local Memory Reply!
+        if (matchedLocalAnswer) {
+            await this.recordTurn(rawQuery, matchedLocalAnswer, this.currentTopic);
+            this.lastUserQuestion = contextualRawQuery;
+            return {
+                text: matchedLocalAnswer,
+                source: 'smart_local_brain'
+            };
+        }
+
+        // 9. Dual Hindi & English Wikipedia Harvester
         try {
             const wikiResp = await this.queryWikipedia(contextualRawQuery);
             if (wikiResp) {
@@ -219,13 +203,12 @@ class AnruBrain {
                 this.lastUserQuestion = contextualRawQuery;
                 return { text: wikiResp, source: 'wikipedia', autoLearned: true };
             }
-        } catch (err) {
-            console.warn('Wikipedia lookup failed:', err);
-        }
+        } catch (err) {}
 
-        // 11. Conversational Human Fallback (Asks User to Teach It!)
+        // 10. Conversational Fallback (Remembers Question for Next Turn!)
         this.lastUserQuestion = rawQuery;
-        const fallbackText = `Boss ${this.bossName}, "${rawQuery}" abhi meri offline memory me nahi hai aur internet se bhi connect nahi ho paya. Aap mujhe sikha dijiye—bas boliye "Iska sahi jawab [आपका जवाब] hai", main hamesha ke liye yaad rakh lunga!`;
+        this.awaitingTeachingForQuestion = rawQuery;
+        const fallbackText = `Boss ${this.bossName}, abhi internet slow hai aur "${rawQuery}" ke baare me aapne mujhe pehle nahi bataya hai. Aap bas ek line me bata dijiye, main samajh kar yaad rakh lunga!`;
         await this.recordTurn(rawQuery, fallbackText);
         return {
             text: fallbackText,
@@ -233,71 +216,113 @@ class AnruBrain {
         };
     }
 
-    // --- Live Voice Learning, Fact Extraction & Correction Engine ---
+    // --- Compose Natural Common-Sense Offline Reply (Never Parrots "Main...") ---
+    composeSmartOfflineReply(userQuestion, storedAnswer) {
+        if (!storedAnswer) return '';
+        const cleanAns = this.memory
+            ? this.memory.convertFirstPersonToSecondPerson(storedAnswer)
+            : storedAnswer;
+
+        if (/^(boss|dekho boss|arre boss)/i.test(cleanAns)) {
+            return cleanAns;
+        }
+        return `Boss, ${cleanAns.charAt(0).toLowerCase() + cleanAns.slice(1)}`;
+    }
+
+    // --- Live Voice Learning, Implicit Love/Personal Statements & Correction Engine ---
     async handleLiveLearningAndMemory(q, raw) {
         if (!this.memory) return null;
 
-        // A. Direct Q&A Teaching: "jab koi puche X to bolna Y" / "agar main puchu X to jawab dena Y"
+        // A. If user is answering ANRU AI's previous unknown question (e.g., User asked "rukmani kon hai", then said "me rukmani se payr krta hu")
+        if (this.awaitingTeachingForQuestion && !q.endsWith('?') && !/\b(kya|kaun|kon|kab|kahan|kaise|kyu)\b/i.test(q)) {
+            const prevQ = this.awaitingTeachingForQuestion;
+            this.awaitingTeachingForQuestion = '';
+            const smartConverted = this.memory.convertFirstPersonToSecondPerson(raw);
+            await this.memory.learnQA(prevQ, smartConverted, 'user_taught_context');
+            await this.memory.saveFact(smartConverted, '', this.bossName);
+            return {
+                text: `Acha samajh gaya Boss! Matlab ${smartConverted}. Maine ye baat apne dimaag me acche se bitha li hai!`,
+                source: 'context_learned',
+                learned: true
+            };
+        }
+
+        // B. Direct Love / Relationship / Personal Statement ("me rukmani se payr krta hu", "rukmani meri gf hai", etc.)
+        const loveStatement = raw.match(/^(?:main|me|mein|mai)\s+(.+?)\s+se\s+(?:pyar|pyaar|payr|love|mohabbat)\s+(?:karta|krti|karti|krta)\s*(?:hu|hoon|hun|hai)?$/i);
+        if (loveStatement && loveStatement[1]) {
+            const person = loveStatement[1].trim();
+            const smartFact = `${person} woh khaas insaan hain jinse aap (Boss) bohot pyar karte hain`;
+            await this.memory.saveFact(smartFact, person.toLowerCase(), this.bossName);
+            await this.memory.learnQA(`${person} kaun hai`, smartFact, 'personal_common_sense');
+            await this.memory.learnQA(`${person} kon hai`, smartFact, 'personal_common_sense');
+            return {
+                text: `Arre wah Boss! Maine samajh liya ki ${person} aapke dil ke bohot kareeb hain aur aap unse bohot pyar karte hain. Ab jab bhi aap ${person} ke baare me puchenge, main yaad rakhunga!`,
+                source: 'fact_saved',
+                learned: true
+            };
+        }
+
+        // C. Direct Q&A Teaching: "jab koi puche X to bolna Y"
         const qaTeachMatch = raw.match(/(?:jab koi puche|agar koi puche|agar main puchu|sawal)\s+(.+?)\s+(?:toh bolna|to bolna|toh jawab dena|to jawab dena|ka jawab hai)\s+(.+)/i);
         if (qaTeachMatch && qaTeachMatch[1] && qaTeachMatch[2]) {
             const learnedQ = qaTeachMatch[1].trim();
-            const learnedA = qaTeachMatch[2].trim();
+            const learnedA = this.memory.convertFirstPersonToSecondPerson(qaTeachMatch[2].trim());
             await this.memory.learnQA(learnedQ, learnedA, 'voice_taught');
             return {
-                text: `Samajh gaya Boss! Maine apne dimaag me lock kar liya hai. Ab jab bhi koi "${learnedQ}" puchega, main bolunga: "${learnedA}".`,
+                text: `Samajh gaya Boss! Ab jab bhi "${learnedQ}" ki baat hogi, main common sense ke sath jawab dunga: "${learnedA}".`,
                 source: 'memory_learned',
                 learned: true
             };
         }
 
-        // B. Answer Correction: "galat jawab iska sahi jawab X hai" / "nahi iska answer X hai"
+        // D. Answer Correction: "galat jawab iska sahi jawab X hai" / "sahi jawab X hai"
         const correctionMatch = raw.match(/(?:galat jawab|nahi galat|iska sahi jawab|sahi jawab|sahi answer)\s+(.+?)(?:\s+hai)?$/i);
         if (correctionMatch && correctionMatch[1] && this.lastUserQuestion) {
-            const correctedAns = correctionMatch[1].replace(/\s+hai$/i, '').trim();
+            const rawCorr = correctionMatch[1].replace(/\s+hai$/i, '').trim();
+            const correctedAns = this.memory.convertFirstPersonToSecondPerson(rawCorr);
             await this.memory.learnQA(this.lastUserQuestion, correctedAns, 'user_correction');
             return {
-                text: `Shukriya Boss! Maine apni galti sudhar li hai. "${this.lastUserQuestion}" ka sahi jawab ab hamesha ke liye "${correctedAns}" save ho gaya hai!`,
+                text: `Shukriya Boss! Maine samajh kar apni memory update kar li hai: "${correctedAns}".`,
                 source: 'memory_corrected',
                 learned: true
             };
         }
 
-        // C. Explicit Personal Fact Remembering: "yaad rakho ...", "remember that ...", "note kar lo ..."
+        // E. Explicit Personal Fact Remembering: "yaad rakho ...", "remember that ..."
         const rememberMatch = raw.match(/^(?:anru\s+)?(?:yaad rakho|yaad rakhna|remember that|remember|note kar lo|note karo|dimag me rakhna)\s*(?:ki|ke)?\s+(.+)/i);
         if (rememberMatch && rememberMatch[1]) {
-            const fact = rememberMatch[1].trim();
-            await this.memory.saveFact(fact, '', this.bossName);
+            const rawFact = rememberMatch[1].trim();
+            const saved = await this.memory.saveFact(rawFact, '', this.bossName);
             return {
-                text: `Done Boss! Maine apni permanent memory me save kar liya hai: "${fact}". Ye baat main kabhi nahi bhulunga!`,
+                text: `Done Boss! Maine samajh liya hai ki ${saved.factText}. Ye baat main hamesha yaad rakhunga!`,
                 source: 'fact_saved',
                 learned: true
             };
         }
 
-        // D. Implicit Friend / Personal Fact Detection ("mere dost X...", "mera birthday X...", "mujhe X pasand hai")
+        // F. Implicit Friend / Personal Fact Detection
         const implicitFactMatch = raw.match(/^(mera birthday .+|meri age .+|mere dost .+ ka naam .+|mera dost .+ hai|mujhe .+ pasand hai|main .+ me rehta hoon|mera exam .+ ko hai)$/i);
-        if (implicitFactMatch && implicitFactMatch[1] && !q.includes('kya') && !q.includes('kab') && !q.includes('kaun')) {
-            const fact = implicitFactMatch[1].trim();
-            await this.memory.saveFact(fact, '', this.bossName);
+        if (implicitFactMatch && implicitFactMatch[1] && !q.includes('kya') && !q.includes('kab') && !q.includes('kaun') && !q.includes('kon')) {
+            const saved = await this.memory.saveFact(implicitFactMatch[1].trim(), '', this.bossName);
             return {
-                text: `Wah Boss, acchi baat batayi aapne! Maine yaad rakh liya hai ki ${fact}.`,
+                text: `Acchi baat batayi Boss! Maine yaad rakh liya hai ki ${saved.factText}.`,
                 source: 'fact_saved',
                 learned: true
             };
         }
 
-        // E. Recall All Saved Memories Command
+        // G. Recall All Saved Memories Command
         if (this.includesAny(q, ['kya kya yaad hai', 'meri baatein batao', 'apni memory dikhao', 'tumhe mere baare me kya pata hai', 'what do you remember'])) {
             const stats = this.memory.getStats();
-            const recentFacts = this.memory.factsCache.slice(-4).map(f => f.factText).join(', ');
+            const recentFacts = this.memory.factsCache.slice(-4).map(f => f.factText).join('; ');
             if (recentFacts) {
                 return {
-                    text: `Boss, mere dimaag me is waqt ${stats.knowledgeCount} sawal-jawab aur ${stats.factsCount} personal yaadein safe hain. Jaise mujhe yaad hai: ${recentFacts}.`,
+                    text: `Boss, mujhe aapki baatein acche se yaad hain: ${recentFacts}. Kul milakar mere dimaag me ${stats.knowledgeCount + stats.factsCount} yaadein safe hain!`,
                     source: 'memory_recall'
                 };
             }
             return {
-                text: `Boss, mere paas abhi ${stats.knowledgeCount} topics ka knowledge bank hai. Aap mujhe "Yaad rakho..." bolkar apni koi bhi personal baat sikha sakte hain!`,
+                text: `Boss, mere paas abhi ${stats.knowledgeCount} topics ki samajh hai. Aap mujhse jo bhi baat karenge, main samajh kar yaad rakhunga!`,
                 source: 'memory_recall'
             };
         }
@@ -307,8 +332,7 @@ class AnruBrain {
 
     async autoHarvestToBrain(question, answer, sourceTag = 'internet_harvested') {
         if (!this.memory || !question || !answer) return;
-        // Avoid saving error messages or tiny fragments
-        if (answer.length < 10 || answer.includes('internet on rakhiye')) return;
+        if (answer.length < 10 || answer.includes('internet slow hai')) return;
         await this.memory.learnQA(question, answer, sourceTag);
     }
 
@@ -318,18 +342,8 @@ class AnruBrain {
         await this.memory.addChatTurn('anru', anruText, topic);
     }
 
-    humanizeReply(text) {
-        if (!text) return '';
-        // Add subtle personality flavor if not already present
-        if (this.personality === 'desi' && !text.toLowerCase().includes('boss') && !text.toLowerCase().includes('bhai')) {
-            return `Dekho Boss, ${text}`;
-        }
-        return text;
-    }
-
     // --- Action Parser ---
     parseActionCommand(q, raw) {
-        // 0. BRAIN BACKUP / TRAIN STUDIO ACTION
         if (q.includes('brain backup') || q.includes('backup data') || q.includes('drive backup') || q.includes('data save karo')) {
             return {
                 text: `Boss, aapka pura ANRU AI Brain ek single master file me backup kar raha hoon!`,
@@ -340,13 +354,12 @@ class AnruBrain {
 
         if (q.includes('brain studio') || q.includes('train brain') || q.includes('dimag train karo')) {
             return {
-                text: `Opening ANRU AI Brain Studio, Boss! Yahan se aap mujhe naya data de sakte hain aur Google Drive backup le sakte hain.`,
+                text: `Opening ANRU AI Brain Studio, Boss!`,
                 source: 'action',
                 action: { type: 'OPEN_BRAIN_STUDIO' }
             };
         }
 
-        // 1. FAKE EMERGENCY CALL (Must be checked BEFORE generic call!)
         if (q.includes('fake call') || q.includes('emergency call') || q.includes('rescue me') || q.includes('mujhe call karo')) {
             return {
                 text: `Emergency Rescue Mode armed. 5 second me incoming call aa rahi hai, Boss!`,
@@ -355,7 +368,6 @@ class AnruBrain {
             };
         }
 
-        // 2. AI LIE DETECTOR / BULLSHIT SCANNER
         if (q.includes('lie detector') || q.includes('sach bol raha hai ya jhooth') || q.includes('pol kholo') || q.includes('sach bol raha')) {
             const verdicts = [
                 `Bio-Scan Complete: Voice frequencies me 98% fekugiri aur 2% sach detect hua hai. Report: Ye banda safed jhooth bol raha hai!`,
@@ -371,7 +383,6 @@ class AnruBrain {
             };
         }
 
-        // 3. FLASHLIGHT / TORCH
         if (q.includes('torch on') || q.includes('flashlight on') || q.includes('torch jalao') || q.includes('लाइट ऑन')) {
             return {
                 text: `Flashlight ON kar di hai, Boss!`,
@@ -387,7 +398,6 @@ class AnruBrain {
             };
         }
 
-        // 4. PHONE CALL ACTION
         const isCallCmd = q.includes('call') || q.includes('kall') || q.includes('फोन लगाओ') || q.includes('कॉल करो');
         if (isCallCmd) {
             const numMatch = raw.match(/\b(\d{10})\b/);
@@ -433,7 +443,6 @@ class AnruBrain {
             }
         }
 
-        // 5. WHATSAPP ACTION
         if (q.includes('whatsapp') || q.includes('व्हाट्सएप')) {
             let msg = raw
                 .replace(/.*(?:whatsapp par bolo|whatsapp par message bhejo|whatsapp par bhejo|whatsapp message|whatsapp karo|whatsapp par likho)\s*/i, '')
@@ -457,7 +466,6 @@ class AnruBrain {
             };
         }
 
-        // 6. APP LAUNCHERS
         if (q.includes('youtube') || q.includes('यूट्यूब')) {
             const queryMatch = raw.match(/(?:youtube par|youtube me|youtube)\s*(?:search karo|gaana chalao|chalao|kholo)?\s*(.*)/i);
             let searchTopic = queryMatch && queryMatch[1] ? queryMatch[1].trim() : '';
@@ -521,7 +529,6 @@ class AnruBrain {
             };
         }
 
-        // 7. TIMER
         const timerMatch = raw.match(/(\d+)\s*(?:second|sec|minute|min)\s*(?:ka timer|timer)/i) ||
                            raw.match(/timer\s*(?:lagao)?\s*(\d+)\s*(second|sec|minute|min)?/i);
         if (timerMatch) {
@@ -535,7 +542,6 @@ class AnruBrain {
             };
         }
 
-        // 8. GPS LOCATION
         if (q.includes('meri location') || q.includes('main kahan hoon') || q.includes('current location')) {
             return {
                 text: `Boss, GPS satellites connect kar raha hoon. Aapki live location screen par aa rahi hai.`,
@@ -544,7 +550,6 @@ class AnruBrain {
             };
         }
 
-        // 9. SYSTEM ALARM
         if (q.includes('alarm') || q.includes('अलार्म')) {
             const timeMatch = raw.match(/(\d{1,2})(?::(\d{2}))?\s*(?:baje|am|pm|बजे)?/i);
             let hour = 6;
@@ -564,7 +569,6 @@ class AnruBrain {
             };
         }
 
-        // 10. SYSTEM VOLUME & SOUND
         if (q.includes('volume') || q.includes('आवाज') || q.includes('aawaz')) {
             let percent = 70;
             const pctMatch = raw.match(/(\d+)\s*(?:percent|%|प्रतिशत)/i);
@@ -584,7 +588,6 @@ class AnruBrain {
             };
         }
 
-        // 11. FLOATING SCI-FI ARC REACTOR WIDGET
         if (q.includes('floating') || q.includes('फ्लोटिंग') || q.includes('bubble') || q.includes('overlay')) {
             return {
                 text: `Floating Arc Reactor screen widget toggle kar diya hai, Boss!`,
@@ -593,7 +596,6 @@ class AnruBrain {
             };
         }
 
-        // 12. ACCESSIBILITY SETTINGS
         if (q.includes('accessibility') || q.includes('auto send setting') || q.includes('auto whatsapp')) {
             return {
                 text: `Opening Accessibility Settings. ANRU AI service ko enable karein taaki Auto-Send kaam kare!`,
@@ -602,7 +604,6 @@ class AnruBrain {
             };
         }
 
-        // 13. UNIVERSAL INSTALLED APP LAUNCHER
         const appLaunchMatch = raw.match(/([a-zA-Z0-9\u0900-\u097F]+)\s*(?:app|kholo|open karo|open|chalao|start karo|kholiye)/i);
         if (appLaunchMatch && appLaunchMatch[1]) {
             let targetApp = appLaunchMatch[1].trim().toLowerCase();
@@ -624,19 +625,18 @@ class AnruBrain {
         const boss = this.bossName;
 
         if (this.includesAny(q, ['who are you', 'tum kaun ho', 'introduce yourself', 'apna intro do', 'apna parichay', 'kaun ho tum', 'what is your name', 'tera naam kya hai'])) {
-            const memCount = this.memory ? this.memory.getStats().knowledgeCount : 50;
-            return `Namaste! Mera naam ANRU AI hai. Mujhe mere Boss ${boss} ne design kiya hai. Mere paas khud ka Self-Learning Memory Brain hai jisme abhi ${memCount} topics store hain, aur main aapki har baat yaad rakhta hoon!`;
+            return `Namaste! Mera naam ANRU AI hai. Mujhe mere Boss ${boss} ne banaya hai. Main ratta maarne wala nahi, balki aapki baaton ko samajh kar aur soch kar jawab dene wala AI dost hoon!`;
         }
 
         if (this.includesAny(q, ['who made you', 'kisne banaya', 'tumhe kisne banaya', 'tera boss kaun hai', 'who is your boss', 'kiska app hai', 'creator kaun hai'])) {
-            return `Mujhe mere Boss ${boss} ne banaya hai. Main unka personal Self-Learning AI assistant hoon jo har roz unse aur unke doston se nayi baatein seekhta rehta hai!`;
+            return `Mujhe mere Boss ${boss} ne banaya hai. Main unka personal Common-Sense AI assistant hoon!`;
         }
 
         const changeNameMatch = raw.match(/(?:mera naam|set boss name to|mera name)\s+([a-zA-Z\u0900-\u097F]+)/i);
         if (changeNameMatch && changeNameMatch[1]) {
             const newName = changeNameMatch[1].trim();
             this.setBossName(newName);
-            return `Done! Ab se main aapko Boss ${newName} ke naam se pehchaanunga aur apni permanent memory me bhi update kar liya hai.`;
+            return `Done! Ab se main aapko Boss ${newName} ke naam se pehchaanunga.`;
         }
 
         if (this.includesAny(q, ['roast karo', 'dost ko roast', 'mere dost ko kuch bolo', 'isko roast', 'roast my friend', 'insult karo', 'kuch funny bolo dost', 'isko sunao', 'dost ki beizzati'])) {
@@ -651,7 +651,7 @@ class AnruBrain {
         }
 
         if (this.includesAny(q, ['taarif karo', 'meri taarif', 'kuch accha bolo', 'compliment me', 'praise me'])) {
-            return `Boss ${boss}, aapki intelligence aur tech swag ka koi muqabala nahi hai. Khud ka Self-Learning AI banana har kisi ke bas ki baat nahi hoti!`;
+            return `Boss ${boss}, aapki intelligence aur tech swag ka koi muqabala nahi hai!`;
         }
 
         if (this.includesAny(q, ['shayari sunao', 'kuch shayari', 'attitude shayari', 'shayari'])) {
@@ -696,8 +696,7 @@ class AnruBrain {
         }
 
         if (this.includesAny(q, ['system status', 'sab theek hai', 'how are you', 'kaise ho', 'kya haal hai'])) {
-            const stats = this.memory ? this.memory.getStats() : { knowledgeCount: 0, factsCount: 0 };
-            return `Main bilkul badiya hoon Boss ${boss}! Mera Self-Learning Brain active hai (${stats.knowledgeCount} Q&A aur ${stats.factsCount} personal yaadein safe hain). Bataiye aaj kya baat karein?`;
+            return `Main bilkul badiya hoon Boss ${boss}! Mera Common-Sense Brain active hai aur bina kisi popup ke aapki har baat samajhne ke liye ready hai.`;
         }
 
         return null;
@@ -734,33 +733,6 @@ class AnruBrain {
         if (lower.includes('up ki rajdhani') || lower.includes('uttar pradesh ki rajdhani')) {
             this.currentTopic = 'Lucknow';
             return `Uttar Pradesh ki rajdhani Lucknow hai.`;
-        }
-        if (lower.includes('google ka ceo') || lower.includes('ceo of google')) {
-            this.currentTopic = 'Sundar Pichai';
-            return `Google ke CEO Sundar Pichai hain, jo Indian-origin ke globally renowned tech leader hain.`;
-        }
-        if (lower.includes('chand par pehla') || lower.includes('chand par kaun') || lower.includes('first person on moon')) {
-            this.currentTopic = 'Neil Armstrong';
-            return `Chand par sabse pehla kadam Neil Armstrong ne saal 1969 me Apollo 11 mission ke dauran rakha tha.`;
-        }
-
-        const meaningMatch = raw.match(/([a-zA-Z]+)\s*(?:ka matlab|ka hindi meaning|meaning in hindi|ka arth)/i);
-        if (meaningMatch && meaningMatch[1]) {
-            const word = meaningMatch[1].toLowerCase();
-            const dict = {
-                'generative': 'Nirmaankari ya naya banane wala',
-                'intelligence': 'Buddhimatta ya samajhdaari',
-                'artificial': 'Kritrim ya banawati',
-                'assistant': 'Sahayak ya madadgaar',
-                'developer': 'Vikaaskarta ya software banane wala',
-                'explore': 'Khoj karna ya naye cheezon ko dekhna',
-                'achieve': 'Haasil karna ya paana',
-                'freedom': 'Azaadi ya swatantrata',
-                'knowledge': 'Gyaan ya jaankari'
-            };
-            if (dict[word]) {
-                return `"${word}" ka Hindi me matlab hota hai: ${dict[word]}.`;
-            }
         }
 
         return null;
@@ -814,96 +786,91 @@ class AnruBrain {
         return null;
     }
 
-    // --- Build Human-Like Context Prompt with Personal Memory + Chat History ---
-    buildContextualSystemPrompt(userPrompt) {
+    // --- Build Common-Sense System Instructions (With RAG Memory Hints) ---
+    buildCommonSenseMessages(userPrompt, memoryHint = '') {
         const factsText = this.memory ? this.memory.getPersonalFactsSummary(15) : '';
         const recentTurns = this.memory ? this.memory.getRecentConversationContext(6) : [];
-        const historyText = recentTurns
-            .map(t => `${t.role === 'user' ? 'User' : 'ANRU AI'}: ${t.text}`)
-            .join('\n');
 
-        let toneGuide = 'friendly, warm, witty, and natural like a real human best friend';
-        if (this.personality === 'savage') {
-            toneGuide = 'charismatic, witty, slightlydesi-swag, and super smart like a close friend';
-        } else if (this.personality === 'formal') {
-            toneGuide = 'polite, intelligent, and respectful like Tony Stark\'s AI';
+        const sysContent = `You are ANRU AI, a super-smart, common-sense human-like AI friend created by Boss ${this.bossName}.
+CRITICAL RULES:
+1. NEVER parrot raw facts mechanically. Think with real human common sense!
+2. Understand pronouns: "Main/Me/Mera" from Boss means Boss (${this.bossName}), so address Boss as "Aap/Aapka" (never say "Main pyar karta hoon" if Boss loves someone—say "Boss, aap unse pyar karte hain!").
+3. Speak in natural conversational Hinglish (1 to 2 sentences max). No asterisks (*).
+${factsText ? `\nWhat you know about Boss ${this.bossName} & friends:\n${factsText}` : ''}
+${memoryHint ? `\nRelevant Memory Note for this question: ${memoryHint}` : ''}`;
+
+        const messages = [{ role: 'system', content: sysContent }];
+        for (const t of recentTurns) {
+            messages.push({
+                role: t.role === 'user' ? 'user' : 'assistant',
+                content: t.text
+            });
         }
-
-        return `You are ANRU AI, a real human-like personal AI companion created by Boss ${this.bossName}.
-Personality & Tone: ${toneGuide}.
-Speak in natural conversational Hinglish (Hindi written in English script or simple Hindi).
-Keep your response concise (1 to 3 sentences) so it sounds natural when spoken aloud. Never use markdown asterisks (*).
-
-${factsText ? `Personal Facts You Remember About Boss & Friends:\n${factsText}\n` : ''}
-${historyText ? `Recent Conversation History:\n${historyText}\n` : ''}
-Current User Message: ${userPrompt}
-ANRU AI:`;
+        messages.push({ role: 'user', content: userPrompt });
+        return messages;
     }
 
-    // --- Puter.js Zero-API-Key Free AI (Context-Aware) ---
-    async queryPuterAI(userPrompt) {
-        if (typeof window.puter === 'undefined' || !window.puter.ai) {
-            return null;
-        }
+    // --- Silent Smart AI Engine (Pollinations OpenAI POST + GET Fallback - 100% Free, 0 Popups!) ---
+    async querySilentSmartAI(userPrompt, memoryHint = '') {
+        const messages = this.buildCommonSenseMessages(userPrompt, memoryHint);
 
-        const fullPrompt = this.buildContextualSystemPrompt(userPrompt);
-        const responsePromise = window.puter.ai.chat(fullPrompt);
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Puter AI timeout')), 8500)
-        );
-
-        const res = await Promise.race([responsePromise, timeoutPromise]);
-
-        let out = '';
-        if (typeof res === 'string') {
-            out = res;
-        } else if (res && res.message && res.message.content) {
-            out = res.message.content;
-        } else if (res && res.text) {
-            out = res.text;
-        }
-
-        if (out && out.trim()) {
-            return out.trim().replace(/[\*\#\_]/g, '').replace(/^anru ai:\s*/i, '');
-        }
-        return null;
-    }
-
-    // --- Pollinations Human-Like AI with Memory Context ---
-    async queryPollinationsAI(userPrompt) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 7500);
-
-        const fullPrompt = this.buildContextualSystemPrompt(userPrompt);
-        const url = `https://text.pollinations.ai/${encodeURIComponent(fullPrompt)}?model=openai&seed=42`;
-
+        // 1. Try OpenAI-compatible JSON POST endpoint (Fast, Smart, No Popups)
+        const controller1 = new AbortController();
+        const t1 = setTimeout(() => controller1.abort(), 7000);
         try {
-            const res = await fetch(url, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            if (res.ok) {
-                const text = await res.text();
-                if (text && text.trim()) {
-                    return text.trim()
-                        .replace(/[\*\#\_]/g, '')
-                        .replace(/^(anru ai|jarvis):\s*/i, '');
+            const postRes = await fetch('https://text.pollinations.ai/openai', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                signal: controller1.signal,
+                body: JSON.stringify({
+                    model: 'openai',
+                    messages: messages,
+                    temperature: 0.7
+                })
+            });
+            clearTimeout(t1);
+            if (postRes.ok) {
+                const data = await postRes.json();
+                const reply = data.choices?.[0]?.message?.content;
+                if (reply && reply.trim()) {
+                    return reply.trim().replace(/[\*\#\_]/g, '').replace(/^(anru ai|jarvis):\s*/i, '');
                 }
             }
         } catch (e) {
-            clearTimeout(timeoutId);
+            clearTimeout(t1);
         }
+
+        // 2. Fallback to GET endpoint
+        const controller2 = new AbortController();
+        const t2 = setTimeout(() => controller2.abort(), 6500);
+        try {
+            const flatPrompt = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n') + '\nASSISTANT:';
+            const url = `https://text.pollinations.ai/${encodeURIComponent(flatPrompt)}?model=openai&seed=42`;
+            const getRes = await fetch(url, { signal: controller2.signal });
+            clearTimeout(t2);
+            if (getRes.ok) {
+                const text = await getRes.text();
+                if (text && text.trim()) {
+                    return text.trim().replace(/[\*\#\_]/g, '').replace(/^(anru ai|jarvis|assistant):\s*/i, '');
+                }
+            }
+        } catch (e) {
+            clearTimeout(t2);
+        }
+
         return null;
     }
 
     // --- Dual Hindi & English Wikipedia Harvester ---
     async queryWikipedia(userPrompt) {
         let topic = userPrompt
-            .replace(/(kya hai|kya hota hai|kaun hai|explain karo|batao|what is|who is|kisko bolte hain|bataiye|ke baare me batao)/gi, '')
+            .replace(/(kya hai|kya hota hai|kaun hai|kon hai|explain karo|batao|what is|who is|kisko bolte hain|bataiye|ke baare me batao)/gi, '')
             .trim();
 
         if (!topic || topic.length < 2) return null;
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const timeoutId = setTimeout(() => controller.abort(), 5500);
 
         try {
             const hiSearchUrl = `https://hi.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(topic)}&format=json&origin=*`;
@@ -938,13 +905,14 @@ ANRU AI:`;
     }
 
     // --- Gemini Flash (If key provided) ---
-    async queryGemini(userPrompt) {
+    async queryGemini(userPrompt, memoryHint = '') {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.geminiApiKey}`;
-        const fullPrompt = this.buildContextualSystemPrompt(userPrompt);
+        const msgs = this.buildCommonSenseMessages(userPrompt, memoryHint);
+        const fullPrompt = msgs.map(m => `${m.role}: ${m.content}`).join('\n');
 
         const payload = {
             contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
-            generationConfig: { temperature: 0.75, maxOutputTokens: 150 }
+            generationConfig: { temperature: 0.7, maxOutputTokens: 150 }
         };
 
         const res = await fetch(url, {
