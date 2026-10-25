@@ -1,62 +1,60 @@
-# 🚀 ANRU AI - Voice Assistant & Phone Controller (v3.0)
+# 🧠 ANRU AI v4.0 - Self-Learning Brain & Single-File G-Drive Vault
 
-यह **ANRU AI** का 100% फ्लैट (Single Folder) रेडी-टू-अपलोड पैकेज है।
-इसमें कोई अंदरूनी सब-फ़ोल्डर नहीं है। आप सीधे सभी फ़ाइलों को **Select All** करके GitHub पर अपलोड कर सकते हैं।
-
----
-
-## ⚡ 1. GitHub पर कैसे अपलोड करें (Phone Friendly):
-
-1. इस ज़िप फ़ाइल (`ANRU_AI_Flat_Ready.zip`) को अपने फ़ोन में अनज़िप (Extract) करें।
-2. अपने फ़ोन के Chrome ब्राउज़र में GitHub पर जाएँ और एक नई Repository बनाएँ (जैसे: `anru-ai`).
-3. **"uploading an existing file"** पर क्लिक करें।
-4. इस फ़ोल्डर की सभी 15 फ़ाइलें (Select All) चुनकर अपलोड कर दें:
-   - `index.html`
-   - `style.css`
-   - `app.js`
-   - `brain.js`
-   - `speech.js`
-   - `visualizer.js`
-   - `audio_sfx.js`
-   - `sw.js`
-   - `manifest.json`
-   - `favicon.png`
-   - `icon-192.png`
-   - `icon-512.png`
-   - `AnRu_Ai_icon.png`
-   - `README.md`
-5. **Commit changes** दबाएँ।
+यह **ANRU AI** का अपग्रेडेड **Self-Learning Human-Like Edition (100% Flat Single-Folder)** है।  
+इसमें **IndexedDB + LocalStorage Dual Mirror** लगा है जो बिना किसी डेटा लॉस के आपके फ़ोन में 2-3GB तक का ज्ञान ऑफ़लाइन स्टोर कर सकता है, और **सिर्फ़ एक सिंगल फ़ाइल (`ANRU_AI_Master_Brain_Backup.json`)** में आपके 4TB Google Drive पर बैकअप होता है।
 
 ---
 
-## 🌐 2. GitHub Pages पर लाइव लिंक कैसे चालू करें:
+## ⚡ 1. यह कैसे सीखता और याद रखता है (3-Way Self-Learning):
 
-1. अपनी रिपॉजिटरी में ऊपर **Settings ⚙️** पर जाएँ।
-2. बाईं तरफ मेनू में **Pages** पर टैप करें।
-3. **Branch** में `None` की जगह **`main`** (या `master`) चुनें और फ़ोल्डर `/(root)` रहने दें।
-4. **Save** दबाएँ।
-5. 1 मिनट में आपको ऊपर लाइव लिंक मिल जाएगा: `https://your-username.github.io/anru-ai/`
+1. **बातचीत से खुद सीखना (Live Voice Training):**
+   - **पर्सनल बातें याद कराना:** बोलिए—*"याद रखो मेरे दोस्त रोहित का बर्थडे 10 अगस्त को है"* या *"याद रखो मुझे कोडिंग पसंद है"*।
+   - **नया सवाल-जवाब सिखाना:** बोलिए—*"जब कोई पूछे तुम्हारा फेवरेट हीरो कौन है तो बोलना आयरन मैन"*।
+   - **गलत जवाब सुधारना:** अगर कभी कोई जवाब पसंद न आए, तो तुरंत बोलिए—*"गलत जवाब, इसका सही जवाब [आपका जवाब] है"*—यह तुरंत अपनी गलती सुधार कर हमेशा के लिए सेव कर लेगा!
 
----
+2. **इंटरनेट से खुद सीखकर ऑफ़लाइन सेव करना (Auto-Internet Harvester):**
+   - जब आप कोई नया सवाल पूछते हैं, तो यह इंटरनेट/AI से जवाब ढूँढकर आपको इंसानी लहजे में बताता है और **साथ ही उसे अपने ऑफ़लाइन दिमाग (IndexedDB) में हमेशा के लिए सेव कर लेता है**। अगली बार वही सवाल पूछने पर बिना इंटरनेट तुरंत जवाब मिलेगा!
 
-## 📱 3. फ़ोन पर असली ऐप की तरह इनस्टॉल कैसे करें (PWA / WebAPK):
-
-1. अपने फ़ोन के Chrome ब्राउज़र में अपना GitHub Pages वाला लाइव लिंक खोलें।
-2. Chrome के ऊपर दाईं तरफ **3 डॉट्स (⋮)** पर क्लिक करें।
-3. **"Install app"** या **"Add to Home screen" (होम स्क्रीन पर जोड़ें)** पर टैप करें।
-4. आपके फ़ोन की होम स्क्रीन पर आपका कस्टम **ANRU AI** लोगो वाला ऐप इनस्टॉल हो जाएगा!
-5. इसे खोलते ही यह बिना किसी ब्राउज़र बार के फुल-स्क्रीन ऐप की तरह चलेगा।
+3. **🧠 Brain Studio पैनल (Bulk Gemini Data Booster):**
+   - ऐप में ऊपर **🧠** बटन दबाकर आप **Brain Studio** खोल सकते हैं।
+   - वहाँ आप Gemini से लिए गए हज़ारों सवाल-जवाब (`Sawal | Jawab` या JSON फॉर्मेट में) एक साथ पेस्ट करके **Train Bulk Data** दबा सकते हैं।
 
 ---
 
-## 🎙️ 4. मुख्य फीचर्स और वॉयस कमांड्स:
+## 🛡️ 2. Zero Data Loss: 1-File Google Drive Backup
 
-* 📞 **कॉल:** *"पापा को कॉल लगाओ"* / *"कॉल 9876543210"*
-* 💬 **व्हाट्सएप:** *"व्हाट्सएप पर मैसेज भेजो मैं 10 मिनट में आ रहा हूँ"*
-* ▶️ **यूट्यूब:** *"यूट्यूब पर अरिजीत सिंह के गाने चलाओ"*
-* 🔦 **टॉर्च:** *"टॉर्च ऑन करो"* / *"टॉर्च ऑफ करो"*
-* 🚨 **फेक कॉल:** *"फेक कॉल लगाओ"* (5 सेकंड में असली जैसी इनकमिंग कॉल स्क्रीन)
-* 🕵️ **लाई डिटेक्टर:** *"लाई डिटेक्टर मोड"* / *"चेक करो ये सच बोल रहा है या झूठ"*
-* ⏰ **टाइमर व अलार्म:** *"टाइमर लगाओ 45 सेकंड"* / *"अलार्म लगाओ 6 बजे"*
-* 🎯 **मैथ व हिसाब:** *"5000 का 18 परसेंट"*, *"25 * 40"*, *"square root of 144"*
-* 🧠 **जीके व सामान्य ज्ञान:** *"भारत के प्रधानमंत्री कौन हैं"*, *"जेनेरेटिव एआई क्या है"*
+आपका सारा डेटा (सीखे गए सवाल-जवाब, आपकी और दोस्तों की यादें, VIP कॉन्टैक्ट्स और सेटिंग्स) **सिर्फ़ एक ही मास्टर फ़ाइल (`ANRU_AI_Master_Brain_Backup.json`)** में रहता है:
+* **बैकअप लेने के लिए:** ऊपर **🧠** बटन दबाएँ ➔ **`📥 Export 1-File Backup (.json)`** पर क्लिक करें (या बोलें *"Brain backup karo"*)। डाउनलोड हुई उस एक फ़ाइल को अपने 4TB Google Drive में रख लें।
+* **रीस्टोर / मर्ज करने के लिए:** **`📤 Restore / Merge File`** दबाकर अपनी बैकअप फ़ाइल चुनें। यह आपके पुराने डेटा को डिलीट किए बिना नए डेटा को सुरक्षित रूप से जोड़ (Smart Merge) देता है!
+
+---
+
+## ☁️ 3. 4TB Google Drive ऑटो-सिंक (Optional Free Cloud Script):
+
+अगर आप चाहते हैं कि बिना बटन दबाए भी आपका डेटा अपने आप Google Drive की एक ही फ़ाइल में सेव होता रहे:
+1. पीसी या फ़ोन के ब्राउज़र में `script.google.com` खोलें और **New Project** बनाएँ।
+2. नीचे दिया गया छोटा सा कोड पेस्ट करें:
+```javascript
+const FILE_NAME = 'ANRU_AI_Master_Brain_Backup.json';
+
+function doPost(e) {
+  const body = JSON.parse(e.postData.contents);
+  const content = JSON.stringify(body.data, null, 2);
+  const files = DriveApp.getFilesByName(FILE_NAME);
+  if (files.hasNext()) {
+    files.next().setContent(content);
+  } else {
+    DriveApp.createFile(FILE_NAME, content, MimeType.PLAIN_TEXT);
+  }
+  return ContentService.createTextOutput(JSON.stringify({ok: true})).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doGet(e) {
+  const files = DriveApp.getFilesByName(FILE_NAME);
+  if (files.hasNext()) {
+    return ContentService.createTextOutput(files.next().getBlob().getDataAsString()).setMimeType(ContentService.MimeType.JSON);
+  }
+  return ContentService.createTextOutput('{}').setMimeType(ContentService.MimeType.JSON);
+}
+```
+3. **Deploy ➔ New Deployment ➔ Web App** चुनें (*Who has access: Anyone* रखें) और मिलने वाला URL अपने ANRU AI के **Brain Studio** में पेस्ट कर दें!

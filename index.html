@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#07080d">
-    <meta name="description" content="ANRU AI - Futuristic Phone Controller & Voice Assistant PWA">
-    <title>ANRU AI - Voice Assistant</title>
+    <meta name="description" content="ANRU AI - Self-Learning Human-Like Voice Assistant & Phone Controller">
+    <title>ANRU AI - Self-Learning Voice Assistant</title>
     
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" href="favicon.png">
@@ -27,10 +27,11 @@
                 <img src="icon-192.png" alt="ANRU AI Core" class="hud-logo">
                 <div>
                     <div class="brand-title">ANRU AI</div>
-                    <div class="brand-subtitle">Quantum Neural v3.0</div>
+                    <div class="brand-subtitle">Self-Learning Neural v4.0</div>
                 </div>
             </div>
             <div class="hud-actions">
+                <button id="brainStudioBtn" class="icon-btn" title="Brain Studio & G-Drive Backup">🧠</button>
                 <button id="sfxToggleBtn" class="icon-btn" title="Sound Effects">🔊</button>
                 <button id="settingsBtn" class="icon-btn" title="Settings">⚙️</button>
             </div>
@@ -39,6 +40,7 @@
         <!-- Telemetry Status Bar -->
         <div class="telemetry-bar">
             <span><span class="status-dot"></span><span id="connStatus">SYSTEM READY</span></span>
+            <span id="memoryCountDisplay">🧠 14 MEMORIES</span>
             <span id="bossDisplay">BOSS: BOSS</span>
             <span id="voiceLangDisplay">HI-IN</span>
         </div>
@@ -57,12 +59,15 @@
                 <span class="prefix">Aap:</span> <span id="userSpeechText">Mic dabakar command boliye...</span>
             </div>
             <div class="jarvis-response" id="jarvisResponseText">
-                "Namaste Boss! Main ANRU AI hoon. Boliye kisko Call milana hai, WhatsApp bhejna hai, ya koi sawal poochhna hai?"
+                "Namaste Boss! Main ANRU AI hoon. Main aapki purani baatein yaad rakhta hoon aur har roz naya seekhta hoon. Boliye aaj kya baat karein?"
             </div>
         </section>
 
         <!-- Quick Action Chips (Swipeable on Mobile) -->
         <nav class="chips-container" aria-label="Quick Commands">
+            <button class="action-chip" data-cmd="brain studio kholo">🧠 Brain Studio</button>
+            <button class="action-chip" data-cmd="brain backup karo">💾 Backup Brain</button>
+            <button class="action-chip" data-cmd="tumhe mere baare me kya kya yaad hai">📝 Meri Yaadein</button>
             <button class="action-chip" data-cmd="papa ko call lagao">📞 Call Papa</button>
             <button class="action-chip" data-cmd="whatsapp par message bhejo Main 10 minute me aa raha hoon">💬 WhatsApp Msg</button>
             <button class="action-chip" data-cmd="floating widget on karo">⚛️ Floating Arc</button>
@@ -87,7 +92,7 @@
         <footer class="bottom-controls">
             <!-- Text Input Fallback Drawer -->
             <div class="text-input-drawer" id="textInputDrawer">
-                <input type="text" id="manualInput" class="hud-input" placeholder="Type command here..." enterkeyhint="send">
+                <input type="text" id="manualInput" class="hud-input" placeholder="Boliye ya type karein (e.g. Yaad rakho...)" enterkeyhint="send">
                 <button id="manualSendBtn" class="send-btn">SEND</button>
             </div>
 
@@ -125,6 +130,75 @@
         </div>
     </div>
 
+    <!-- Brain Studio & Single-File Google Drive Backup Modal -->
+    <div class="modal-overlay" id="brainStudioModal">
+        <div class="settings-card">
+            <div class="modal-header">
+                <h3>🧠 ANRU Brain Studio & G-Drive Vault</h3>
+                <button id="closeBrainStudioBtn" class="close-btn">&times;</button>
+            </div>
+
+            <!-- Memory Stats Banner -->
+            <div class="setting-group" style="background: rgba(0, 242, 254, 0.08); border: 1px solid rgba(0, 242, 254, 0.3); padding: 10px; border-radius: 10px;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px;">
+                    <span>📚 Learned Q&A: <strong id="statKnowledgeCount" style="color: var(--cyan);">14</strong></span>
+                    <span>💡 Personal Facts: <strong id="statFactsCount" style="color: var(--purple);">0</strong></span>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-dim);">
+                    Last Backup: <span id="statLastSync">Abhi tak nahi hua</span>
+                </div>
+            </div>
+
+            <!-- 1. Single-File Google Drive Backup & Restore (Zero Data Loss) -->
+            <div class="setting-group">
+                <label>🛡️ Single-File Master Backup (No Data Loss):</label>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;">
+                    <button type="button" id="downloadSingleBackupBtn" class="small-btn" style="flex: 1; padding: 10px; background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #10b981; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        📥 Export 1-File Backup (.json)
+                    </button>
+                    <button type="button" id="uploadSingleBackupBtn" class="small-btn" style="flex: 1; padding: 10px; background: rgba(0, 242, 254, 0.15); border: 1px solid var(--cyan); color: var(--cyan); border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        📤 Restore / Merge File
+                    </button>
+                    <input type="file" id="importBrainFileInput" accept=".json,.txt" style="display: none;">
+                </div>
+                <p style="font-size: 0.72rem; color: var(--text-dim); margin-top: 5px;">
+                    Saara data (`ANRU_AI_Master_Brain_Backup.json`) ek hi single file me download hota hai. Ise apne 4TB Google Drive par rakhein!
+                </p>
+            </div>
+
+            <!-- 2. Teach Single Question / Personal Memory -->
+            <div class="setting-group">
+                <label>🎓 ANRU AI Ko Naya Sawal-Jawab Sikhao:</label>
+                <input type="text" id="teachQuestionInput" placeholder="Sawal (e.g. Mere dost Rohit ka bday kab hai?)" style="margin-bottom: 6px;">
+                <input type="text" id="teachAnswerInput" placeholder="Jawab (e.g. Rohit ka birthday 10 August ko hai)">
+                <button type="button" id="teachSubmitBtn" class="small-btn" style="width: 100%; margin-top: 6px; padding: 9px; background: rgba(168, 85, 247, 0.2); border: 1px solid var(--purple); color: #fff; border-radius: 8px; cursor: pointer;">
+                    ➕ Lock in Permanent Brain
+                </button>
+            </div>
+
+            <!-- 3. Bulk Gemini Data Booster -->
+            <div class="setting-group">
+                <label for="bulkTrainTextarea">🚀 Gemini Bulk Data Booster (Paste Q&A or JSON):</label>
+                <textarea id="bulkTrainTextarea" rows="3" placeholder="Format: Sawal | Jawab (Ek line me ek)&#10;Jaise: Taj Mahal kahan hai | Taj Mahal Agra me hai" style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid var(--card-border); color: #fff; padding: 8px; border-radius: 8px; font-size: 0.82rem;"></textarea>
+                <button type="button" id="bulkTrainBtn" class="small-btn" style="width: 100%; margin-top: 6px; padding: 9px; background: rgba(0, 242, 254, 0.2); border: 1px solid var(--cyan); color: var(--cyan); border-radius: 8px; cursor: pointer;">
+                    ⚡ Train Bulk Data into Brain
+                </button>
+            </div>
+
+            <!-- 4. Optional 4TB Google Drive Auto-Sync Webhook -->
+            <div class="setting-group">
+                <label for="gdriveWebhookInput">☁️ 4TB Google Drive Auto-Sync URL (Optional):</label>
+                <input type="text" id="gdriveWebhookInput" placeholder="Paste Google Apps Script Web App URL...">
+                <div style="display: flex; gap: 8px; margin-top: 6px;">
+                    <button type="button" id="syncToDriveBtn" class="small-btn" style="flex: 1; padding: 8px;">☁️ Save to G-Drive</button>
+                    <button type="button" id="pullFromDriveBtn" class="small-btn" style="flex: 1; padding: 8px;">📲 Pull from G-Drive</button>
+                </div>
+            </div>
+
+            <div id="brainStudioStatusMsg" style="font-size: 0.8rem; color: #10b981; text-align: center; min-height: 18px; margin-top: 4px;"></div>
+        </div>
+    </div>
+
     <!-- Settings Modal -->
     <div class="modal-overlay" id="settingsModal">
         <div class="settings-card">
@@ -142,8 +216,8 @@
                 <label for="selectPersonality">ANRU AI Personality:</label>
                 <select id="selectPersonality">
                     <option value="savage">🔥 Savage / Desi Roast Swag</option>
-                    <option value="formal">👔 Formal Sci-Fi ANRU AI</option>
-                    <option value="desi">🤝 Desi Yaar / Friendly</option>
+                    <option value="desi">🤝 Real Human Best Friend (Desi)</option>
+                    <option value="formal">👔 Formal Sci-Fi Assistant</option>
                 </select>
             </div>
 
@@ -182,6 +256,7 @@
 
     <script src="audio_sfx.js"></script>
     <script src="visualizer.js"></script>
+    <script src="memory_db.js"></script>
     <script src="brain.js"></script>
     <script src="speech.js"></script>
     <script src="app.js"></script>

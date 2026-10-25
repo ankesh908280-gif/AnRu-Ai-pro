@@ -1,11 +1,12 @@
-// sw.js - Service Worker for Offline PWA Support
-const CACHE_NAME = 'jarvis-ai-v3.0';
+// sw.js - Service Worker for Offline PWA & Self-Learning Brain Support
+const CACHE_NAME = 'anru-ai-self-learning-v4.0';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
     './style.css',
     './audio_sfx.js',
     './visualizer.js',
+    './memory_db.js',
     './brain.js',
     './speech.js',
     './app.js',
@@ -39,12 +40,13 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
-    
-    // Always pass external AI & API calls directly to live network
+
+    // Pass external AI & Cloud Sync calls directly to network
     const url = event.request.url;
     if (url.includes('puter.com') ||
         url.includes('wikipedia.org') ||
         url.includes('googleapis.com') ||
+        url.includes('script.google.com') ||
         url.includes('pollinations.ai')) {
         return;
     }

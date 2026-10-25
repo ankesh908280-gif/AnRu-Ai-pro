@@ -1,9 +1,10 @@
-// app.js - Master Controller for ANRU AI PWA with Hardware & Action Handlers
+// app.js - Master Controller for ANRU AI with Self-Learning Brain Studio & Single-File G-Drive Backup
 
 document.addEventListener('DOMContentLoaded', () => {
     const visualizer = new window.QuantumVisualizer('orbCanvas');
     const sfx = window.soundFX;
     const brain = new (window.AnruBrain || window.JarvisBrain)();
+    const memory = window.anruMemory;
 
     // DOM Elements
     const micBtn = document.getElementById('micBtn');
@@ -11,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const userSpeechText = document.getElementById('userSpeechText');
     const jarvisResponseText = document.getElementById('jarvisResponseText');
     const connStatus = document.getElementById('connStatus');
+    const memoryCountDisplay = document.getElementById('memoryCountDisplay');
     const bossDisplay = document.getElementById('bossDisplay');
     const voiceLangDisplay = document.getElementById('voiceLangDisplay');
     const keyboardToggleBtn = document.getElementById('keyboardToggleBtn');
@@ -26,6 +28,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectPersonality = document.getElementById('selectPersonality');
     const selectLanguage = document.getElementById('selectLanguage');
     const actionChips = document.querySelectorAll('.action-chip');
+
+    // Brain Studio Elements
+    const brainStudioBtn = document.getElementById('brainStudioBtn');
+    const brainStudioModal = document.getElementById('brainStudioModal');
+    const closeBrainStudioBtn = document.getElementById('closeBrainStudioBtn');
+    const statKnowledgeCount = document.getElementById('statKnowledgeCount');
+    const statFactsCount = document.getElementById('statFactsCount');
+    const statLastSync = document.getElementById('statLastSync');
+    const downloadSingleBackupBtn = document.getElementById('downloadSingleBackupBtn');
+    const uploadSingleBackupBtn = document.getElementById('uploadSingleBackupBtn');
+    const importBrainFileInput = document.getElementById('importBrainFileInput');
+    const teachQuestionInput = document.getElementById('teachQuestionInput');
+    const teachAnswerInput = document.getElementById('teachAnswerInput');
+    const teachSubmitBtn = document.getElementById('teachSubmitBtn');
+    const bulkTrainTextarea = document.getElementById('bulkTrainTextarea');
+    const bulkTrainBtn = document.getElementById('bulkTrainBtn');
+    const gdriveWebhookInput = document.getElementById('gdriveWebhookInput');
+    const syncToDriveBtn = document.getElementById('syncToDriveBtn');
+    const pullFromDriveBtn = document.getElementById('pullFromDriveBtn');
+    const brainStudioStatusMsg = document.getElementById('brainStudioStatusMsg');
 
     // Fake Call Elements
     const fakeCallOverlay = document.getElementById('fakeCallOverlay');
@@ -45,17 +67,34 @@ document.addEventListener('DOMContentLoaded', () => {
     let isProcessing = false;
     let typeInterval = null;
     let torchStream = null;
-    let fakeCallTimer = null;
     let activeCallDurationTimer = null;
 
     function updateTelemetry() {
-        bossDisplay.textContent = `BOSS: ${brain.bossName.toUpperCase()}`;
-        voiceLangDisplay.textContent = (localStorage.getItem('jarvis_lang') || 'hi-IN').toUpperCase();
-        if (typeof window.AndroidBridge !== 'undefined') {
+        if (bossDisplay) bossDisplay.textContent = `BOSS: ${brain.bossName.toUpperCase()}`;
+        if (voiceLangDisplay) voiceLangDisplay.textContent = (localStorage.getItem('jarvis_lang') || 'hi-IN').toUpperCase();
+        if (typeof window.AndroidBridge !== 'undefined' && connStatus) {
             connStatus.textContent = 'SYSTEM // NATIVE APK';
             connStatus.style.color = '#00f2fe';
         }
+        refreshBrainStatsUI();
     }
+
+    function refreshBrainStatsUI() {
+        if (!memory) return;
+        const stats = memory.getStats();
+        const total = stats.knowledgeCount + stats.factsCount;
+        if (memoryCountDisplay) {
+            memoryCountDisplay.textContent = `🧠 ${total} MEMORIES`;
+        }
+        if (statKnowledgeCount) statKnowledgeCount.textContent = String(stats.knowledgeCount);
+        if (statFactsCount) statFactsCount.textContent = String(stats.factsCount);
+        if (statLastSync) statLastSync.textContent = stats.lastSync;
+    }
+
+    if (memory && memory.initPromise) {
+        memory.initPromise.then(() => refreshBrainStatsUI());
+    }
+
     window.onNativeBridgeReady = function() {
         updateTelemetry();
         if (window.AndroidBridge && window.AndroidBridge.startForegroundService) {
@@ -63,6 +102,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     updateTelemetry();
+
+    function showStudioStatus(msg, isError = false) {
+        if (!brainStudioStatusMsg) return;
+        brainStudioStatusMsg.style.color = isError ? '#ef4444' : '#10b981';
+        brainStudioStatusMsg.textContent = msg;
+    }
 
     function renderContactsList() {
         if (!contactsListDisplay) return;
@@ -147,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!queryText || !queryText.trim() || isProcessing) return;
 
         isProcessing = true;
-        orbStatusLabel.textContent = 'PROCESSING // COMMAND';
+        orbStatusLabel.textContent = 'PROCESSING // NEURAL BRAIN';
         visualizer.setState('processing');
         sfx.playProcessing();
 
@@ -155,11 +200,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await brain.processQuery(queryText);
             const answer = result.text;
 
+            refreshBrainStatsUI();
             displayTypewriter(answer);
             sfx.playResponse();
             speech.speak(answer);
 
-            // Execute Action Command if present
             if (result.action) {
                 executeAction(result.action);
             }
@@ -176,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeInterval) clearInterval(typeInterval);
         jarvisResponseText.textContent = '';
         let index = 0;
-        
+
         typeInterval = setInterval(() => {
             if (index < fullText.length) {
                 jarvisResponseText.textContent += fullText.charAt(index);
@@ -187,10 +232,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 16);
     }
 
-    // Helper: Detect native Android bridge
     function isAndroidBridgeActive() {
-        return typeof window.AndroidBridge !== 'undefined' && 
-               typeof window.AndroidBridge.isAndroid === 'function' && 
+        return typeof window.AndroidBridge !== 'undefined' &&
+               typeof window.AndroidBridge.isAndroid === 'function' &&
                window.AndroidBridge.isAndroid();
     }
 
@@ -199,6 +243,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const isNative = isAndroidBridgeActive();
 
         switch (act.type) {
+            case 'BRAIN_BACKUP':
+                if (memory) {
+                    memory.downloadSingleMasterBackupFile();
+                    memory.syncToGoogleDriveSingleFile().catch(() => {});
+                    refreshBrainStatsUI();
+                }
+                break;
+
+            case 'OPEN_BRAIN_STUDIO':
+                if (brainStudioBtn) {
+                    setTimeout(() => brainStudioBtn.click(), 600);
+                }
+                break;
+
             case 'CALL':
                 if (isNative && window.AndroidBridge.directCall) {
                     window.AndroidBridge.directCall(act.number);
@@ -226,7 +284,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isNative && window.AndroidBridge.openApp) {
                     const launched = window.AndroidBridge.openApp(act.app || act.query);
                     if (!launched) {
-                        // Fallback to web search if not installed
                         setTimeout(() => {
                             window.open(`https://www.google.com/search?q=${encodeURIComponent(act.app || act.query)}`, '_blank');
                         }, 1200);
@@ -234,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     setTimeout(() => {
                         if (act.app === 'youtube') {
-                            const ytUrl = act.query 
+                            const ytUrl = act.query
                                 ? `https://www.youtube.com/results?search_query=${encodeURIComponent(act.query)}`
                                 : 'https://www.youtube.com';
                             window.open(ytUrl, '_blank');
@@ -424,7 +481,153 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     }
 
-    // Button Listeners
+    // --- Brain Studio Listeners ---
+    if (brainStudioBtn && brainStudioModal) {
+        brainStudioBtn.addEventListener('click', () => {
+            refreshBrainStatsUI();
+            if (gdriveWebhookInput && memory) {
+                gdriveWebhookInput.value = memory.getGDriveWebhookUrl();
+            }
+            showStudioStatus('');
+            brainStudioModal.classList.add('open');
+        });
+    }
+
+    if (closeBrainStudioBtn && brainStudioModal) {
+        closeBrainStudioBtn.addEventListener('click', () => {
+            brainStudioModal.classList.remove('open');
+        });
+        brainStudioModal.addEventListener('click', (e) => {
+            if (e.target === brainStudioModal) {
+                brainStudioModal.classList.remove('open');
+            }
+        });
+    }
+
+    // 1-Click Single File Master Backup Download
+    if (downloadSingleBackupBtn && memory) {
+        downloadSingleBackupBtn.addEventListener('click', () => {
+            const stats = memory.downloadSingleMasterBackupFile();
+            refreshBrainStatsUI();
+            const msg = `Single Master Backup File (${stats.totalKnowledgeItems} Q&A, ${stats.totalPersonalFacts} Facts) downloaded!`;
+            showStudioStatus(msg);
+            sfx.playResponse();
+            speech.speak("Boss, aapke ANRU AI ka pura data ek single file me download ho gaya hai.");
+        });
+    }
+
+    // 1-Click Single File Restore / Smart Merge
+    if (uploadSingleBackupBtn && importBrainFileInput && memory) {
+        uploadSingleBackupBtn.addEventListener('click', () => {
+            importBrainFileInput.click();
+        });
+
+        importBrainFileInput.addEventListener('change', (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                try {
+                    const content = ev.target.result;
+                    const res = await memory.bulkTrainFromTextOrJson(content);
+                    refreshBrainStatsUI();
+                    renderContactsList();
+                    const msg = `Smart Merge Complete! +${res.added} Q&A & +${res.factsAdded} Facts restored with 0% data loss!`;
+                    showStudioStatus(msg);
+                    sfx.playResponse();
+                    speech.speak(`Boss, backup file safaltapurvak merge ho gayi hai. Koi bhi purana data delete nahi hua!`);
+                } catch (err) {
+                    showStudioStatus('File format invalid!', true);
+                }
+                importBrainFileInput.value = '';
+            };
+            reader.readAsText(file);
+        });
+    }
+
+    // Single Question-Answer Live Teaching in Studio
+    if (teachSubmitBtn && memory) {
+        teachSubmitBtn.addEventListener('click', async () => {
+            const q = teachQuestionInput.value.trim();
+            const a = teachAnswerInput.value.trim();
+            if (!q || !a) {
+                showStudioStatus('Sawal aur Jawab dono likhiye, Boss!', true);
+                return;
+            }
+            await memory.learnQA(q, a, 'studio_taught');
+            teachQuestionInput.value = '';
+            teachAnswerInput.value = '';
+            refreshBrainStatsUI();
+            showStudioStatus(`Locked in Brain: "${q}"`);
+            sfx.playResponse();
+            speech.speak("Naya gyaan dimaag me lock ho gaya hai, Boss!");
+        });
+    }
+
+    // Bulk Gemini Data Booster Training
+    if (bulkTrainBtn && memory) {
+        bulkTrainBtn.addEventListener('click', async () => {
+            const raw = bulkTrainTextarea.value.trim();
+            if (!raw) {
+                showStudioStatus('Pehle Gemini se liya hua data paste karein!', true);
+                return;
+            }
+            const res = await memory.bulkTrainFromTextOrJson(raw);
+            bulkTrainTextarea.value = '';
+            refreshBrainStatsUI();
+            showStudioStatus(`Trained +${res.added} Q&A and +${res.factsAdded} Facts into Brain!`);
+            sfx.playResponse();
+            speech.speak(`Boss, ${res.added + res.factsAdded} nayi baatein mere dimaag me feed ho gayi hain!`);
+        });
+    }
+
+    // Google Drive Cloud Webhook Sync
+    if (syncToDriveBtn && memory) {
+        syncToDriveBtn.addEventListener('click', async () => {
+            if (gdriveWebhookInput) {
+                memory.setGDriveWebhookUrl(gdriveWebhookInput.value);
+            }
+            if (!memory.getGDriveWebhookUrl()) {
+                showStudioStatus('Pehle Google Apps Script URL dalein ya "Export 1-File Backup" dabayein!', true);
+                return;
+            }
+            showStudioStatus('Syncing single master file to 4TB Google Drive...');
+            const res = await memory.syncToGoogleDriveSingleFile();
+            refreshBrainStatsUI();
+            if (res.ok) {
+                showStudioStatus(`Synced to single Google Drive file at ${res.time}!`);
+                sfx.playResponse();
+                speech.speak("Boss, Google Drive ki single file me sara data safe ho gaya hai.");
+            } else {
+                showStudioStatus('Cloud sync failed. Check URL or use Export 1-File button.', true);
+            }
+        });
+    }
+
+    if (pullFromDriveBtn && memory) {
+        pullFromDriveBtn.addEventListener('click', async () => {
+            if (gdriveWebhookInput) {
+                memory.setGDriveWebhookUrl(gdriveWebhookInput.value);
+            }
+            if (!memory.getGDriveWebhookUrl()) {
+                showStudioStatus('Pehle Google Apps Script URL dalein!', true);
+                return;
+            }
+            showStudioStatus('Pulling & merging from Google Drive...');
+            const res = await memory.pullFromGoogleDriveSingleFile();
+            refreshBrainStatsUI();
+            if (res.ok) {
+                showStudioStatus(`Restored & merged from Google Drive (${res.time})!`);
+                sfx.playResponse();
+                speech.speak("Google Drive se sara data bina kisi data loss ke merge ho gaya hai!");
+            } else {
+                showStudioStatus('Could not pull from Drive. Check URL.', true);
+            }
+        });
+    }
+
+    // Main UI Button Listeners
     micBtn.addEventListener('click', () => {
         triggerFirstInteraction();
         speech.toggleListening();
@@ -505,7 +708,6 @@ document.addEventListener('DOMContentLoaded', () => {
         sfx.playResponse();
     });
 
-
     const toggleArcBubbleBtn = document.getElementById('toggleArcBubbleBtn');
     if (toggleArcBubbleBtn) {
         toggleArcBubbleBtn.addEventListener('click', () => {
@@ -529,7 +731,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.addEventListener('online', () => {
-        connStatus.textContent = 'ONLINE // SECURE';
+        connStatus.textContent = 'ONLINE // AUTO-LEARNING';
         connStatus.style.color = '#10b981';
     });
     window.addEventListener('offline', () => {
